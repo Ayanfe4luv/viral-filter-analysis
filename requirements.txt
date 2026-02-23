@@ -1,18 +1,23 @@
 # Vir-Seq-Sift International v2.1 Requirements
-# Optimized for execution speed and sub-second filtering
+# Zero-Lag Architecture — Performance-First Dependencies
+# NOTE: biopython excluded by design — GISAID headers are pipe-delimited
+#       and string-split parsing is faster for this known format.
 
-# Core App Framework (Must be >= 1.35.0 for native Plotly selections and st.navigation)
+# Core App Framework (st.navigation requires >= 1.36.0)
 streamlit>=1.36.0
 
 # Vectorized Data Operations
 pandas>=2.2.0
 numpy>=1.26.0
 
-# Signal Processing / Peak Detection (For Epidemic Waves)
+# Signal Processing / Epidemic Wave Detection
 scipy>=1.13.0
 
 # High-Performance Visualizations
 plotly>=5.22.0
 
-# Caching & Serialization
+# Caching & Arrow Serialization (st.cache_data DataFrame backend)
 pyarrow>=16.0.0
+
+# URL-based FASTA downloads
+requests>=2.31.0
