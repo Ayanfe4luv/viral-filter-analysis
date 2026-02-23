@@ -1,82 +1,117 @@
+# -*- coding: utf-8 -*-
+"""
+utils/hitl_extractor.py
+
+Human-in-the-Loop extraction logic. Distinct from automated filtering
+because it relies on USER STATE rather than data state.
+
+This module handles the three manual extraction methods:
+  1. Peak Checklist Selection  — expert selects from algorithm-detected peaks
+  2. Custom Time Checkpoints   — expert forces extraction from specific months
+  3. Visual Lasso              — expert drags zones on epidemic curve chart
+
+All methods always include the absolute First and Last sequences (locked).
+
+Build target (Phase 3):
+  - HITLExtractor.generate_peak_checklist()
+  - HITLExtractor.extract_by_checklist_selection()
+  - HITLExtractor.extract_by_checkpoints()
+  - HITLExtractor.extract_by_lasso()
+  - HITLExtractor._get_sequences_for_period()
+
+State keys managed by this module (stored in st.session_state):
+  - selected_peaks    : list of selected peak period strings
+  - lasso_zones       : list of (start_date, end_date) tuples
+  - checkpoint_targets: list of 'YYYY-MM' month strings
+
+These must persist when user switches pages and returns.
+"""
+
 import pandas as pd
 
-class HITLExtractor:
-    @staticmethod
-    def extract_from_checklist(df, selected_peaks):
-        """
-        Extracts representative sequences from selected automatic peaks + Absolute First/Last
-        selected_peaks: list of dicts with 'date' and 'count'
-        """
-        if df.empty or 'collection_date' not in df.columns:
-            return df
-            
-        valid_df = df.dropna(subset=['collection_date']).sort_values('collection_date')
-        if valid_df.empty:
-            return df
-            
-        representatives = []
-        
-        # 1. Absolute First
-        representatives.append(valid_df.iloc[0])
-        
-        # 2. Selected Peaks
-        for peak in selected_peaks:
-            period_start = pd.to_datetime(peak['date'])
-            period_end = period_start + pd.Timedelta(days=7) # using weekly peaks
-            
-            mask = (valid_df['collection_date'] >= period_start) & (valid_df['collection_date'] < period_end)
-            peak_df = valid_df[mask]
-            
-            if not peak_df.empty:
-                # Take the first sequence of this peak burst
-                representatives.append(peak_df.iloc[0])
-                
-        # 3. Absolute Last
-        representatives.append(valid_df.iloc[-1])
-        
-        result_df = pd.DataFrame(representatives)
-        
-        if 'seq_hash' in result_df.columns:
-             result_df = result_df.drop_duplicates(subset=['seq_hash'])
-        else:
-             result_df = result_df.drop_duplicates()
-             
-        # Sort chronologically
-        return result_df.sort_values('collection_date')
 
-    @staticmethod
-    def extract_from_custom_checkpoints(df, checkpoint_months):
+class HITLExtractor:
+    """Human-in-the-loop peak and checkpoint extraction.
+
+    Phase 3: Implement all methods.
+    """
+
+    def generate_peak_checklist(self, df: pd.DataFrame) -> list[dict]:
+        """Build checklist items from detected peaks for the UI.
+
+        Calls EpiWaveDetector internally. Returns list of dicts:
+            {
+                'id': 'first',
+                'label': 'Absolute First (Jan 2024)',
+                'type': 'locked',        # locked | major_peak | minor_peak | potential_spillover
+                'selected': True,
+                'sequences': 1
+            }
+
+        First and Last items always have type='locked' and selected=True.
+        Major peaks (count > 50) auto-selected. Minor peaks user-decides.
+        Off-season clusters default to unselected — require expert decision.
+
+        Phase 3: Implement here.
         """
-        Extracts representative sequence from custom user defined months (e.g. overwintering sentinels).
-        checkpoint_months: list of strings (e.g., '2024-03', '2024-12')
+        # --- STUB ---
+        return []
+
+    def extract_by_checklist_selection(
+        self, df: pd.DataFrame, selected_items: list[dict]
+    ) -> pd.DataFrame:
+        """Extract sequences based on expert checkbox selections.
+
+        Always includes locked First and Last. Adds one representative
+        per selected peak period. Returns drop_duplicates() result.
+
+        Phase 3: Implement here.
         """
-        if df.empty or 'collection_date' not in df.columns:
-            return df
-            
-        valid_df = df.dropna(subset=['collection_date']).sort_values('collection_date')
-        if valid_df.empty:
-            return df
-            
-        representatives = []
-        
-        representatives.append(valid_df.iloc[0])
-        
-        for month_str in checkpoint_months:
-            start_date = pd.to_datetime(month_str)
-            end_date = start_date + pd.DateOffset(months=1)
-            
-            mask = (valid_df['collection_date'] >= start_date) & (valid_df['collection_date'] < end_date)
-            month_df = valid_df[mask]
-            
-            if not month_df.empty:
-                representatives.append(month_df.iloc[0])
-                
-        representatives.append(valid_df.iloc[-1])
-        
-        result_df = pd.DataFrame(representatives)
-        if 'seq_hash' in result_df.columns:
-             result_df = result_df.drop_duplicates(subset=['seq_hash'])
-        else:
-             result_df = result_df.drop_duplicates()
-             
-        return result_df.sort_values('collection_date')
+        # --- STUB ---
+        return df.head(0)
+
+    def extract_by_checkpoints(
+        self,
+        df: pd.DataFrame,
+        first: bool = True,
+        last: bool = True,
+        checkpoints: list[str] = None,
+    ) -> pd.DataFrame:
+        """Extract sequences from specific checkpoint months.
+
+        Args:
+            checkpoints: List of 'YYYY-MM' strings.
+                         For each, extracts the first sequence of that month.
+
+        Always includes global First and Last (locked).
+        Shows st.info on found months, st.warning on empty months.
+
+        Phase 3: Implement here.
+        """
+        # --- STUB ---
+        return df.head(0)
+
+    def extract_by_lasso(
+        self, df: pd.DataFrame, selected_ranges: list[tuple] = None
+    ) -> pd.DataFrame:
+        """Extract sequences from visually-selected date ranges.
+
+        Args:
+            selected_ranges: List of (start_date, end_date) tuples.
+                Filters df where collection_date falls within ANY tuple (OR logic).
+                Applies weekly density sampling within each range.
+
+        Phase 3: Implement here.
+        """
+        # --- STUB ---
+        return df.head(0)
+
+    def _get_sequences_for_period(
+        self, df: pd.DataFrame, period
+    ) -> pd.DataFrame:
+        """Filter df to sequences within a given pandas Period.
+
+        Phase 3: Implement here.
+        """
+        # --- STUB ---
+        return df.head(0)
