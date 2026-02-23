@@ -1,0 +1,18 @@
+# Vir-Seq-Sift International v2.1 Requirements
+# Optimized for execution speed and sub-second filtering
+
+# Core App Framework (Must be >= 1.35.0 for native Plotly selections and st.navigation)
+streamlit>=1.36.0
+
+# Vectorized Data Operations
+pandas>=2.2.0
+numpy>=1.26.0
+
+# Signal Processing / Peak Detection (For Epidemic Waves)
+scipy>=1.13.0
+
+# High-Performance Visualizations
+plotly>=5.22.0
+
+# Caching & Serialization
+pyarrow>=16.0.0
