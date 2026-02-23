@@ -1,0 +1,238 @@
+# -*- coding: utf-8 -*-
+"""
+pages/02_📁_Workspace.py — Data Intake
+
+CRITICAL STATE RULE:
+  session_state['active_df'] is written HERE and ONLY HERE (Activate button).
+  No other page or utility may write to active_df.
+  All downstream filtering writes to session_state['filtered_df'] only.
+"""
+
+import pandas as pd
+import streamlit as st
+
+from utils.gisaid_parser import decompress_if_needed, parse_gisaid_fasta
+from utils.minimal_i18n import T
+
+# Colab availability — non-fatal if running outside Google Colab
+try:
+    from google.colab import drive as _colab_drive
+    COLAB_AVAILABLE = True
+except ImportError:
+    COLAB_AVAILABLE = False
+
+
+# ---------------------------------------------------------------------------
+# Page header
+# ---------------------------------------------------------------------------
+st.title(f"📁 {T('nav_workspace')}")
+
+# ---------------------------------------------------------------------------
+# Section 1 — File Upload
+# ---------------------------------------------------------------------------
+st.subheader(T("upload_header"))
+st.caption(T("upload_instruction"))
+
+uploaded_files = st.file_uploader(
+    label=T("upload_instruction"),
+    type=["fasta", "fa", "fas", "gz", "zip"],
+    accept_multiple_files=True,
+    key="file_uploader",
+    label_visibility="collapsed",
+)
+
+# --- Parse any newly uploaded files ---
+if uploaded_files:
+    existing_names = {rf["name"] for rf in st.session_state.get("raw_files", [])}
+    for uf in uploaded_files:
+        if uf.name in existing_names:
+            continue  # Already parsed — @st.cache_data handles repeat calls anyway
+        with st.spinner(f"Parsing `{uf.name}`…"):
+            raw_bytes = uf.read()
+            content = decompress_if_needed(raw_bytes, uf.name)
+            parsed_list, parse_time = parse_gisaid_fasta(content, uf.name)
+
+        if not parsed_list:
+            st.error(f"No sequences found in `{uf.name}`. Check the file format.")
+            continue
+
+        st.session_state["raw_files"].append({
+            "name":        uf.name,
+            "parsed":      parsed_list,
+            "parse_time":  parse_time,
+            "n_sequences": len(parsed_list),
+        })
+        st.success(T("upload_parse_success", count=len(parsed_list), time=parse_time))
+        st.session_state["action_logs"].append({
+            "action":    "parse",
+            "file":      uf.name,
+            "sequences": len(parsed_list),
+            "time_s":    round(parse_time, 3),
+            "timestamp": pd.Timestamp.now().isoformat(),
+        })
+
+# ---------------------------------------------------------------------------
+# Section 2 — Loaded Files Table
+# ---------------------------------------------------------------------------
+raw_files: list = st.session_state.get("raw_files", [])
+
+if not raw_files:
+    st.info(T("upload_no_files"))
+else:
+    st.divider()
+    st.subheader("Loaded Files")
+
+    # Build summary table
+    summary = pd.DataFrame([
+        {
+            "File":       rf["name"],
+            "Sequences":  f"{rf['n_sequences']:,}",
+            "Parse Time": f"{rf['parse_time']:.2f}s",
+        }
+        for rf in raw_files
+    ])
+    st.dataframe(summary, use_container_width=True, hide_index=True)
+
+    # File selection for activation / merge
+    file_names = [rf["name"] for rf in raw_files]
+    selected = st.multiselect(
+        "Select file(s) to activate (select multiple to merge):",
+        options=file_names,
+        default=file_names[:1] if file_names else [],
+    )
+
+    col_activate, col_remove = st.columns([3, 1])
+
+    # --- Activate button (single write to active_df) ---
+    with col_activate:
+        activate_label = (
+            T("upload_activate_button") if len(selected) == 1
+            else T("upload_merge_button")
+        )
+        if st.button(activate_label, type="primary",
+                     disabled=not selected, use_container_width=True):
+            selected_parsed = [
+                rf["parsed"] for rf in raw_files if rf["name"] in selected
+            ]
+            with st.spinner("Building active DataFrame…"):
+                dfs = [pd.DataFrame(p) for p in selected_parsed]
+                merged = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
+
+            # THE ONLY PLACE active_df IS WRITTEN
+            st.session_state["active_df"] = merged
+            st.session_state["filtered_df"] = pd.DataFrame()  # Reset filters on new activation
+
+            st.session_state["action_logs"].append({
+                "action":    "activate",
+                "files":     selected,
+                "sequences": len(merged),
+                "timestamp": pd.Timestamp.now().isoformat(),
+            })
+            st.success(
+                f"✅ Activated {len(merged):,} sequences "
+                f"from {len(selected)} file(s) into `active_df`."
+            )
+            st.rerun()
+
+    # --- Remove file(s) from loaded list ---
+    with col_remove:
+        if st.button("Remove Selected", disabled=not selected, use_container_width=True):
+            st.session_state["raw_files"] = [
+                rf for rf in raw_files if rf["name"] not in selected
+            ]
+            st.rerun()
+
+# ---------------------------------------------------------------------------
+# Section 3 — Active Dataset Status
+# ---------------------------------------------------------------------------
+active_df: pd.DataFrame = st.session_state.get("active_df", pd.DataFrame())
+
+if not active_df.empty:
+    st.divider()
+    st.subheader("Active Dataset")
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric(T("sidebar_active_seqs"), f"{len(active_df):,}")
+
+    if "sequence_length" in active_df.columns:
+        c2.metric(T("sidebar_avg_length"), f"{active_df['sequence_length'].mean():.0f} bp")
+
+    if "collection_date" in active_df.columns:
+        dates = pd.to_datetime(active_df["collection_date"], errors="coerce").dropna()
+        if not dates.empty:
+            c3.metric("Earliest", dates.min().strftime("%Y-%m-%d"))
+            c4.metric("Latest",   dates.max().strftime("%Y-%m-%d"))
+
+    if "subtype_clean" in active_df.columns:
+        subtypes = active_df["subtype_clean"].value_counts().head(5)
+        st.markdown("**Top Subtypes:**")
+        st.dataframe(
+            subtypes.reset_index().rename(columns={"index": "Subtype", "subtype_clean": "Count"}),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    if len(active_df) > 10_000:
+        st.warning(T("sidebar_large_dataset_warning"))
+
+    # --- URL Download ---
+    with st.expander("🌐 Download FASTA from URL"):
+        url = st.text_input("FASTA URL (direct link to .fasta, .fa, .gz, .zip):", key="url_input")
+        if st.button("Fetch from URL", disabled=not url):
+            try:
+                import requests
+                with st.spinner(f"Fetching {url}…"):
+                    r = requests.get(url, timeout=30)
+                    r.raise_for_status()
+                    fname = url.split("/")[-1] or "downloaded.fasta"
+                    content = decompress_if_needed(r.content, fname)
+                    parsed_list, parse_time = parse_gisaid_fasta(content, fname)
+                if parsed_list:
+                    st.session_state["raw_files"].append({
+                        "name":        fname,
+                        "parsed":      parsed_list,
+                        "parse_time":  parse_time,
+                        "n_sequences": len(parsed_list),
+                    })
+                    st.success(T("upload_parse_success", count=len(parsed_list), time=parse_time))
+                    st.rerun()
+                else:
+                    st.error("No sequences found at that URL.")
+            except Exception as e:
+                st.error(f"Fetch failed: {e}")
+
+# ---------------------------------------------------------------------------
+# Section 4 — Google Drive / Colab Integration (conditional)
+# ---------------------------------------------------------------------------
+if COLAB_AVAILABLE:
+    st.divider()
+    with st.expander(T("upload_colab_header")):
+        st.info("Google Colab Drive detected. Mount your drive to access large FASTA files.")
+        if st.button("Mount Google Drive"):
+            try:
+                _colab_drive.mount("/content/drive")
+                st.success("Drive mounted at /content/drive")
+            except Exception as e:
+                st.error(f"Mount failed: {e}")
+        drive_path = st.text_input("Path to FASTA file on Drive:",
+                                   placeholder="/content/drive/MyDrive/sequences.fasta")
+        if st.button("Load from Drive", disabled=not drive_path):
+            try:
+                with open(drive_path, "rb") as f:
+                    raw_bytes = f.read()
+                fname = drive_path.split("/")[-1]
+                content = decompress_if_needed(raw_bytes, fname)
+                parsed_list, parse_time = parse_gisaid_fasta(content, fname)
+                if parsed_list:
+                    st.session_state["raw_files"].append({
+                        "name":        fname,
+                        "parsed":      parsed_list,
+                        "parse_time":  parse_time,
+                        "n_sequences": len(parsed_list),
+                    })
+                    st.success(T("upload_parse_success", count=len(parsed_list), time=parse_time))
+                    st.rerun()
+                else:
+                    st.error("No sequences found in that file.")
+            except Exception as e:
+                st.error(f"Drive load failed: {e}")
