@@ -315,5 +315,36 @@
 
   "sidebar_theme": "Theme",
   "theme_light": "Light",
-  "theme_dark": "Dark"
+  "theme_dark": "Dark",
+
+  "analytics_overview_header": "Dataset Overview",
+  "analytics_gauge_sequences": "Total Sequences",
+  "analytics_gauge_length": "Avg Sequence Length",
+  "analytics_gauge_completeness": "Data Completeness",
+  "analytics_completeness_label": "% sequences with date + subtype + host filled",
+  "analytics_chart_type_sunburst": "Sunburst Hierarchy",
+  "analytics_chart_type_treemap": "Treemap",
+  "analytics_chart_type_violin": "Violin / Box",
+  "analytics_chart_type_bubble": "Bubble Timeline",
+  "analytics_chart_type_parallel": "Parallel Categories",
+  "analytics_chart_type_gantt": "Gantt Range",
+  "analytics_hierarchy_depth": "Hierarchy depth (levels)",
+  "analytics_violin_group": "Group by",
+  "analytics_bubble_y_field": "Y-axis field",
+  "analytics_parallel_dims": "Dimensions (2–4 fields)",
+  "analytics_gantt_top_n": "Top N subtypes",
+  "analytics_no_length_col": "No sequence_length column in this dataset.",
+  "analytics_bubble_interval": "X-axis interval",
+
+  "sidebar_obs_sections": "Dashboard Sections",
+  "sidebar_obs_kpis": "KPI Metrics",
+  "sidebar_obs_epi": "Epidemic Curve",
+  "sidebar_obs_locs": "Top Locations",
+  "sidebar_obs_clades": "Clade Distribution",
+  "sidebar_obs_gauges": "Gauge Overview",
+  "sidebar_fl_sequences": "Filtered Sequences",
+  "sidebar_fl_download": "Download FASTA ({n} seqs)",
+  "sidebar_an_chart_type": "Quick Chart Type",
+  "sidebar_an_palette": "Active Palette",
+  "sidebar_ex_source": "Export Source"
 }

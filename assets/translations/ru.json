@@ -315,5 +315,36 @@
 
   "sidebar_theme": "Тема оформления",
   "theme_light": "Светлая",
-  "theme_dark": "Тёмная"
+  "theme_dark": "Тёмная",
+
+  "analytics_overview_header": "Обзор датасета",
+  "analytics_gauge_sequences": "Всего последовательностей",
+  "analytics_gauge_length": "Средняя длина последовательности",
+  "analytics_gauge_completeness": "Полнота данных",
+  "analytics_completeness_label": "% последовательностей с датой + субтипом + хозяином",
+  "analytics_chart_type_sunburst": "Иерархия (Sunburst)",
+  "analytics_chart_type_treemap": "Дерево (Treemap)",
+  "analytics_chart_type_violin": "Скрипка / Ящик",
+  "analytics_chart_type_bubble": "Пузырьковая временная",
+  "analytics_chart_type_parallel": "Параллельные категории",
+  "analytics_chart_type_gantt": "Диапазонная шкала (Ганта)",
+  "analytics_hierarchy_depth": "Глубина иерархии (уровни)",
+  "analytics_violin_group": "Группировать по",
+  "analytics_bubble_y_field": "Поле оси Y",
+  "analytics_parallel_dims": "Измерения (2–4 поля)",
+  "analytics_gantt_top_n": "Топ N субтипов",
+  "analytics_no_length_col": "Столбец sequence_length отсутствует в датасете.",
+  "analytics_bubble_interval": "Интервал оси X",
+
+  "sidebar_obs_sections": "Разделы панели",
+  "sidebar_obs_kpis": "Ключевые метрики",
+  "sidebar_obs_epi": "Эпидемическая кривая",
+  "sidebar_obs_locs": "Основные локации",
+  "sidebar_obs_clades": "Распределение по кладам",
+  "sidebar_obs_gauges": "Индикаторы",
+  "sidebar_fl_sequences": "Отфильтрованные последовательности",
+  "sidebar_fl_download": "Скачать FASTA ({n} посл.)",
+  "sidebar_an_chart_type": "Быстрый тип диаграммы",
+  "sidebar_an_palette": "Активная палитра",
+  "sidebar_ex_source": "Источник экспорта"
 }
