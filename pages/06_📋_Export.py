@@ -140,7 +140,7 @@ _SPLIT_FIELDS = {
     T("obs_col_host"):     "host",
     T("obs_col_segment"):  "segment",
     T("obs_col_location"): "location",
-    T("obs_col_clade"):    "clade_l1",
+    T("obs_col_clade"):    "clade",
     "Year":                "_year",
     "Month":               "_month",
 }

@@ -465,10 +465,11 @@ if _show_locs:
             st.dataframe(top_loc, use_container_width=True, hide_index=True)
 
 # ── Row 5: Clade donut ────────────────────────────────────────────────────────
-if _show_clades and "clade_l1" in _display_df.columns:
+_clade_col = "clade" if "clade" in _display_df.columns else "clade_l1"
+if _show_clades and _clade_col in _display_df.columns:
     st.divider()
     st.subheader(T("obs_clade_dist"))
-    top_clade = (_display_df["clade_l1"].dropna()
+    top_clade = (_display_df[_clade_col].dropna()
                  .value_counts().head(10).reset_index())
     top_clade.columns = [T("obs_col_clade"), T("obs_col_count")]
     try:

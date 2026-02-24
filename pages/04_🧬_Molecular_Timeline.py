@@ -414,9 +414,11 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=False):
                 if len(_small_hashes) > 0:
                     _sing_parts = []
                     for _sh in _small_hashes:
-                        _sg = _display_df[_display_df["sequence_hash"] == _sh].sort_values(
-                            "collection_date", errors="ignore"
-                        )
+                        _raw = _display_df[_display_df["sequence_hash"] == _sh]
+                        try:
+                            _sg = _raw.sort_values("collection_date")
+                        except (TypeError, KeyError):
+                            _sg = _raw
                         _sing_parts.append(_sg.iloc[[0]])      # first date
                         if len(_sg) > 1:
                             _sing_parts.append(_sg.iloc[[-1]])  # last date

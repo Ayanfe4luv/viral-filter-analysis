@@ -136,7 +136,7 @@ _FIELD_MAP = {
     T("analytics_field_host"):     "host",
     T("analytics_field_segment"):  "segment",
     T("analytics_field_location"): "location",
-    T("analytics_field_clade"):    "clade_l1",
+    T("analytics_field_clade"):    "clade",
     T("analytics_field_year"):     "_year",
 }
 
@@ -156,7 +156,7 @@ _CHART_TYPES = {
 
 # Human-readable display names for raw column names
 _COL_LABELS: dict = {
-    "clade_l1":     T("analytics_field_clade"),
+    "clade":        T("analytics_field_clade"),
     "subtype_clean": T("analytics_field_subtype"),
     "host":         T("analytics_field_host"),
     "segment":      T("analytics_field_segment"),
