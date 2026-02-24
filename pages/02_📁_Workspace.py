@@ -80,7 +80,7 @@ if not raw_files:
     st.info(T("upload_no_files"))
 else:
     st.divider()
-    st.subheader("Loaded Files")
+    st.subheader(T("workspace_loaded_files"))
 
     # Build summary table
     summary = pd.DataFrame([
@@ -96,7 +96,7 @@ else:
     # File selection for activation / merge
     file_names = [rf["name"] for rf in raw_files]
     selected = st.multiselect(
-        "Select file(s) to activate (select multiple to merge):",
+        T("workspace_select_activate"),
         options=file_names,
         default=file_names[:1] if file_names else [],
     )
@@ -114,7 +114,7 @@ else:
             selected_parsed = [
                 rf["parsed"] for rf in raw_files if rf["name"] in selected
             ]
-            with st.spinner("Building active DataFrame…"):
+            with st.spinner(T("workspace_building_df")):
                 dfs = [pd.DataFrame(p) for p in selected_parsed]
                 merged = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
 
@@ -128,15 +128,12 @@ else:
                 "sequences": len(merged),
                 "timestamp": pd.Timestamp.now().isoformat(),
             })
-            st.success(
-                f"✅ Activated {len(merged):,} sequences "
-                f"from {len(selected)} file(s) into `active_df`."
-            )
+            st.success(T("workspace_activated_success", n=len(merged), files=len(selected)))
             st.rerun()
 
     # --- Remove file(s) from loaded list ---
     with col_remove:
-        if st.button("Remove Selected", disabled=not selected, use_container_width=True):
+        if st.button(T("workspace_remove_btn"), disabled=not selected, use_container_width=True):
             st.session_state["raw_files"] = [
                 rf for rf in raw_files if rf["name"] not in selected
             ]
@@ -149,7 +146,7 @@ active_df: pd.DataFrame = st.session_state.get("active_df", pd.DataFrame())
 
 if not active_df.empty:
     st.divider()
-    st.subheader("Active Dataset")
+    st.subheader(T("workspace_active_dataset"))
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(T("sidebar_active_seqs"), f"{len(active_df):,}")
@@ -160,12 +157,12 @@ if not active_df.empty:
     if "collection_date" in active_df.columns:
         dates = pd.to_datetime(active_df["collection_date"], errors="coerce").dropna()
         if not dates.empty:
-            c3.metric("Earliest", dates.min().strftime("%Y-%m-%d"))
-            c4.metric("Latest",   dates.max().strftime("%Y-%m-%d"))
+            c3.metric(T("workspace_earliest"), dates.min().strftime("%Y-%m-%d"))
+            c4.metric(T("workspace_latest"),   dates.max().strftime("%Y-%m-%d"))
 
     if "subtype_clean" in active_df.columns:
         subtypes = active_df["subtype_clean"].value_counts().head(5)
-        st.markdown("**Top Subtypes:**")
+        st.markdown(T("workspace_top_subtypes"))
         st.dataframe(
             subtypes.reset_index().rename(columns={"index": "Subtype", "subtype_clean": "Count"}),
             use_container_width=True,
@@ -176,9 +173,9 @@ if not active_df.empty:
         st.warning(T("sidebar_large_dataset_warning"))
 
     # --- URL Download ---
-    with st.expander("🌐 Download FASTA from URL"):
-        url = st.text_input("FASTA URL (direct link to .fasta, .fa, .gz, .zip):", key="url_input")
-        if st.button("Fetch from URL", disabled=not url):
+    with st.expander(T("workspace_url_expander")):
+        url = st.text_input(T("workspace_url_input_label"), key="url_input")
+        if st.button(T("workspace_url_fetch_btn"), disabled=not url):
             try:
                 import requests
                 with st.spinner(f"Fetching {url}…"):
@@ -197,9 +194,9 @@ if not active_df.empty:
                     st.success(T("upload_parse_success", count=len(parsed_list), time=parse_time))
                     st.rerun()
                 else:
-                    st.error("No sequences found at that URL.")
+                    st.error(T("workspace_url_no_seqs"))
             except Exception as e:
-                st.error(f"Fetch failed: {e}")
+                st.error(T("workspace_url_fetch_failed", error=e))
 
 # ---------------------------------------------------------------------------
 # Section 4 — Google Drive / Colab Integration (conditional)

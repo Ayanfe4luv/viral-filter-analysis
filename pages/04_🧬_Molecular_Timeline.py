@@ -120,7 +120,29 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
             .reset_index(drop=True)
         )
         st.subheader(T("timeline_top_clusters"))
-        st.dataframe(cluster_summary, use_container_width=True, hide_index=True)
+        try:
+            import plotly.express as _px_diag
+            _diag_plot = cluster_summary.head(10).sort_values("count")
+            _fig_diag = _px_diag.bar(
+                _diag_plot,
+                x="count",
+                y="representative",
+                orientation="h",
+                labels={"count": T("timeline_diag_axis_count"), "representative": T("timeline_diag_axis_clone")},
+                color="count",
+                color_continuous_scale="Blues",
+            )
+            _fig_diag.update_layout(
+                margin=dict(t=10, b=0, l=0, r=20),
+                height=max(180, len(_diag_plot) * 30 + 60),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                coloraxis_showscale=False,
+                yaxis_title=None,
+            )
+            st.plotly_chart(_fig_diag, use_container_width=True)
+        except Exception:
+            st.dataframe(cluster_summary, use_container_width=True, hide_index=True)
 
         # CSV download of cluster summary
         st.download_button(
@@ -362,11 +384,8 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=False):
 
             for _, erow in edited_mat.iterrows():
                 clone_name = erow["sequence_clone"]
-                # find hash from matrix_df
-                seq_hash_rows = matrix_df[matrix_df.apply(
-                    lambda r: f"{r.get('representative', r['sequence_hash'])}-like (n={int(r['count'])})" == clone_name,
-                    axis=1
-                )]
+                # find hash from matrix_df — sequence_clone IS the display_name
+                seq_hash_rows = matrix_df[matrix_df["sequence_clone"] == clone_name]
                 if seq_hash_rows.empty:
                     continue
                 seq_hash = seq_hash_rows.iloc[0]["sequence_hash"]
@@ -387,6 +406,25 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=False):
 
             if selected_seqs:
                 result_df = pd.concat(selected_seqs).drop_duplicates()
+
+                # Singleton pass-through: sequences below min_cluster are hidden from the
+                # matrix UI but must still be auto-included (First + Last occurrence).
+                _all_hash_counts = _display_df.groupby("sequence_hash").size()
+                _small_hashes = _all_hash_counts[_all_hash_counts < min_cluster].index
+                if len(_small_hashes) > 0:
+                    _sing_parts = []
+                    for _sh in _small_hashes:
+                        _sg = _display_df[_display_df["sequence_hash"] == _sh].sort_values(
+                            "collection_date", errors="ignore"
+                        )
+                        _sing_parts.append(_sg.iloc[[0]])      # first date
+                        if len(_sg) > 1:
+                            _sing_parts.append(_sg.iloc[[-1]])  # last date
+                    if _sing_parts:
+                        _sing_df = pd.concat(_sing_parts).drop_duplicates()
+                        result_df = pd.concat([result_df, _sing_df]).drop_duplicates()
+                        st.caption(T("timeline_singletons_included",
+                                     n=len(_sing_df), total=len(_small_hashes)))
 
                 # Before / After preview
                 prev1, prev2 = st.columns(2)
