@@ -44,6 +44,20 @@ else:
     _mode_badge = "🔵 Current" if not _filtered_df.empty else "🔵 Current (Active)"
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Chart colour scheme — user-selectable from sidebar, stored in session state
+# ─────────────────────────────────────────────────────────────────────────────
+_TIMELINE_PALETTES: dict = {
+    "🔵 Ocean Blue": {"seq": "Blues",   "accent": "#0ea5e9", "fill": "rgba(14,165,233,0.22)"},
+    "🟣 Aurora":     {"seq": "Plasma",  "accent": "#a855f7", "fill": "rgba(168,85,247,0.22)"},
+    "🟢 Forest":     {"seq": "Greens",  "accent": "#10b981", "fill": "rgba(16,185,129,0.22)"},
+    "🟠 Heatwave":   {"seq": "Oranges", "accent": "#f97316", "fill": "rgba(249,115,22,0.22)"},
+    "🔴 Crimson":    {"seq": "Reds",    "accent": "#ef4444", "fill": "rgba(239,68,68,0.22)"},
+    "⚫ Neutral":    {"seq": "Greys",   "accent": "#64748b", "fill": "rgba(100,116,139,0.22)"},
+}
+_tl_scheme_name = st.session_state.get("timeline_chart_scheme", "🔵 Ocean Blue")
+_tl_pal = _TIMELINE_PALETTES.get(_tl_scheme_name, _TIMELINE_PALETTES["🔵 Ocean Blue"])
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Page header
 # ─────────────────────────────────────────────────────────────────────────────
 st.title(f"🧬 {T('timeline_title')}")
@@ -180,7 +194,7 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
                     y="representative",
                     orientation="h",
                     color=_color_col,
-                    color_continuous_scale="Blues",
+                    color_continuous_scale=_tl_pal["seq"],
                     custom_data=_cdata,
                 )
                 _fig_diag.update_traces(hovertemplate=_hover_tmpl)
@@ -230,7 +244,7 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
                     path=_sun_path,
                     values="total",
                     color="total",
-                    color_continuous_scale="Blues",
+                    color_continuous_scale=_tl_pal["seq"],
                 )
                 _fig_sun.update_layout(
                     margin=dict(t=0, b=0, l=0, r=0),
@@ -427,6 +441,12 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
 
             _display_matrix = _matrix_df.drop(columns=["sequence_hash"])
 
+            # Sparse matrix: clusters that don't span a given month get NaN.
+            # CheckboxColumn requires bool — coerce NaN → False.
+            for _mc in _month_cols:
+                if _mc in _display_matrix.columns:
+                    _display_matrix[_mc] = _display_matrix[_mc].fillna(False).astype(bool)
+
             edited = st.data_editor(
                 _display_matrix,
                 use_container_width=True,
@@ -571,11 +591,11 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=False):
                             name=T("timeline_raw_label"),
                             hovertemplate="%{x}<br>Raw: %{y:,}<extra></extra>",
                         ))
-                        # Blue bars — curated foreground
+                        # Curated foreground bars — colour from sidebar scheme
                         _fig_imp.add_trace(_go_imp.Bar(
                             x=_all_months, y=_cur_y,
                             name=T("timeline_curated_label"),
-                            marker_color="#0ea5e9",
+                            marker_color=_tl_pal["accent"],
                             opacity=0.85,
                             hovertemplate="%{x}<br>Curated: %{y:,}<extra></extra>",
                         ))
@@ -691,6 +711,28 @@ with st.sidebar:
         st.metric(T("timeline_unique_clones"), f"{_unique_clones:,}")
         st.metric(T("timeline_total_sequences"), f"{len(_display_df):,}")
     st.caption(T("timeline_sidebar_tip"))
+
+    # ── Chart colour scheme ────────────────────────────────────────────────
+    st.markdown("**Chart Colour**")
+    _sb_scheme_opts = list(_TIMELINE_PALETTES.keys())
+    st.selectbox(
+        "Chart Colour",
+        options=_sb_scheme_opts,
+        index=_sb_scheme_opts.index(_tl_scheme_name) if _tl_scheme_name in _sb_scheme_opts else 0,
+        key="timeline_chart_scheme",
+        label_visibility="collapsed",
+        help="Applies to the cluster bar, sunburst and epidemic curve.",
+    )
+    # Live colour swatch
+    _sb_accent = _TIMELINE_PALETTES.get(
+        st.session_state.get("timeline_chart_scheme", "🔵 Ocean Blue"),
+        _TIMELINE_PALETTES["🔵 Ocean Blue"],
+    )["accent"]
+    st.markdown(
+        f"<div style='height:7px;border-radius:3px;margin-top:4px;"
+        f"background:linear-gradient(90deg,{_sb_accent}55,{_sb_accent})'></div>",
+        unsafe_allow_html=True,
+    )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Inter-page navigation
