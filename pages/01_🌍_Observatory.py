@@ -84,22 +84,26 @@ if _active_df.empty:
     st.markdown(f"### {T('welcome_how_title')}")
 
     steps = [
-        ("📁", T("nav_workspace"),   T("welcome_step1_desc"), "#0ea5e9"),
-        ("🧬", T("nav_filter_lab"),  T("welcome_step2_desc"), "#10b981"),
-        ("📊", T("nav_analytics"),   T("welcome_step3_desc"), "#8b5cf6"),
-        ("📋", T("nav_export"),      T("welcome_step4_desc"), "#f59e0b"),
+        ("📁", T("nav_workspace"),  T("welcome_step1_desc"), "#0ea5e9",
+         "pages/02_📁_Workspace.py"),
+        ("🔬", T("nav_refinery"),   T("welcome_step2_desc"), "#10b981",
+         "pages/03_🔬_Sequence_Refinery.py"),
+        ("📊", T("nav_analytics"),  T("welcome_step3_desc"), "#8b5cf6",
+         "pages/05_📊_Analytics.py"),
+        ("📋", T("nav_export"),     T("welcome_step4_desc"), "#f59e0b",
+         "pages/06_📋_Export.py"),
     ]
 
     cols = st.columns(4)
-    for col, (icon, title, desc, color) in zip(cols, steps):
+    for col, (icon, title, desc, color, page_path) in zip(cols, steps):
         col.markdown(f"""
         <div style="
             background:#fff;
             border-top: 4px solid {color};
             border-radius:10px;
-            padding:1.1rem .9rem;
+            padding:1.1rem .9rem .6rem;
             box-shadow:0 2px 8px rgba(0,0,0,.07);
-            height:130px;
+            min-height:130px;
         ">
             <div style="font-size:1.6rem; margin-bottom:.3rem;">{icon}</div>
             <div style="font-weight:700; color:#1e3a8a; font-size:.95rem;
@@ -107,6 +111,11 @@ if _active_df.empty:
             <div style="color:#6b7280; font-size:.82rem; line-height:1.4;">{desc}</div>
         </div>
         """, unsafe_allow_html=True)
+        try:
+            col.page_link(page_path, label=f"Go to {title} →",
+                          use_container_width=True)
+        except AttributeError:
+            pass  # st.page_link available in Streamlit ≥ 1.29
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -155,7 +164,7 @@ if _active_df.empty:
             background: linear-gradient(90deg,#0369a1 0%,#0891b2 100%);
             color:white; padding:1.2rem 1.5rem; border-radius:12px;
             box-shadow:0 4px 14px rgba(3,105,161,.3);
-            text-align:center;
+            text-align:center; margin-bottom:.6rem;
         ">
             <div style="font-size:1.4rem; margin-bottom:.4rem;">📁</div>
             <div style="font-weight:700; font-size:1rem; margin-bottom:.3rem;">
@@ -166,6 +175,12 @@ if _active_df.empty:
             </div>
         </div>
         """, unsafe_allow_html=True)
+        try:
+            st.page_link("pages/02_📁_Workspace.py",
+                         label="📁 Load Your Dataset →",
+                         use_container_width=True)
+        except AttributeError:
+            pass
 
     with info_col:
         st.markdown(f"""
@@ -184,6 +199,49 @@ if _active_df.empty:
             </ul>
         </div>
         """, unsafe_allow_html=True)
+
+    # ── Supported Viruses & RSV Info ──────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(f"### 🦠 {T('welcome_virus_support_title')}")
+    v1, v2, v3, v4 = st.columns(4)
+    for vcol, (vicon, vname, vdesc, vbg) in zip(
+        [v1, v2, v3, v4],
+        [
+            ("🐦", "Influenza A/B", "H3N2, H1N1, H5N1\nand all subtypes", "#fef3c7"),
+            ("🫁", "RSV A & B",     "Respiratory Syncytial\nVirus — full genome", "#dbeafe"),
+            ("🦠", "SARS-CoV-2",    "Coronaviruses\nwith date metadata", "#d1fae5"),
+            ("🧬", "Any Virus",     "Any FASTA with\nGISAID-style headers", "#ede9fe"),
+        ],
+    ):
+        vcol.markdown(f"""
+        <div style="background:{vbg}; border-radius:10px; padding:.9rem .8rem;
+                    text-align:center; min-height:110px;">
+            <div style="font-size:1.8rem;">{vicon}</div>
+            <div style="font-weight:700; font-size:.9rem; margin:.3rem 0 .2rem;">{vname}</div>
+            <div style="font-size:.78rem; color:#475569; white-space:pre-line;">{vdesc}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.caption(T("rsv_support_note"))
+
+    # ── Quick Use Case Cues ────────────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    with st.expander("💡 Quick Use Case Examples — Beginner Tips", expanded=False):
+        st.markdown(f"""
+**Influenza H3N2 — quality filtering:**
+> {T('use_case_tip_filter')}
+
+**RSV — genome length check:**
+> {T('use_case_tip_filter')}
+
+**RSV — overwintering tracking:**
+> {T('use_case_tip_timeline')}
+
+**RSV A vs B comparison:**
+> {T('use_case_tip_analytics')}
+
+See the full **usecase.md** (included in your download) for 55 step-by-step beginner examples.
+        """)
 
     # Guide expander (adapted from original docs_header)
     with st.expander(f"📖 {T('welcome_guide_title')}", expanded=False):
@@ -433,3 +491,13 @@ if action_logs:
     with st.expander(T("obs_action_log_header")):
         st.dataframe(pd.DataFrame(action_logs),
                      use_container_width=True, hide_index=True)
+
+# ── Inter-page navigation ─────────────────────────────────────────────────────
+st.divider()
+_nav1, _nav2 = st.columns(2)
+try:
+    _nav2.page_link("pages/02_📁_Workspace.py",
+                    label="📁 Workspace →",
+                    use_container_width=True)
+except AttributeError:
+    _nav2.markdown("[📁 Workspace →](pages/02_📁_Workspace.py)")

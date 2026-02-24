@@ -236,3 +236,19 @@ if COLAB_AVAILABLE:
                     st.error("No sequences found in that file.")
             except Exception as e:
                 st.error(f"Drive load failed: {e}")
+
+# ---------------------------------------------------------------------------
+# Inter-page navigation
+# ---------------------------------------------------------------------------
+st.divider()
+_ws_nav1, _ws_nav2 = st.columns(2)
+try:
+    _ws_nav1.page_link("pages/01_🌍_Observatory.py",
+                       label="← 🌍 Observatory",
+                       use_container_width=True)
+    _ws_nav2.page_link("pages/03_🔬_Sequence_Refinery.py",
+                       label="🔬 Sequence Refinery →",
+                       use_container_width=True)
+except AttributeError:
+    _ws_nav1.markdown("[← 🌍 Observatory](pages/01_🌍_Observatory.py)")
+    _ws_nav2.markdown("[🔬 Sequence Refinery →](pages/03_🔬_Sequence_Refinery.py)")
