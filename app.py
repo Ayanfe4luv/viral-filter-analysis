@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-app.py — Vir-Seq-Sift International v2.1
+app.py — Vir-Seq-Sift v2.1
 Multilingual entry point + minimal sidebar + st.navigation() wiring.
 
 This file is the ONLY place that:
@@ -22,14 +22,14 @@ from utils.minimal_i18n import T, init_translations
 # Page config — must be the first Streamlit call in the script
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Vir-Seq-Sift International",
+    page_title="Vir-Seq-Sift",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
         "Get Help": None,
         "Report a bug": None,
-        "About": "Vir-Seq-Sift International v2.1 — Zero-Lag Epidemiological Surveillance",
+        "About": "Vir-Seq-Sift v2.1 — Zero-Lag Epidemiological Surveillance",
     },
 )
 
@@ -89,11 +89,12 @@ _init_session_state()
 # Step 3: Wire navigation pages
 # ---------------------------------------------------------------------------
 _PAGES = [
-    st.Page("pages/01_🌍_Observatory.py",  title=T("nav_observatory"), icon="🌍"),
-    st.Page("pages/02_📁_Workspace.py",    title=T("nav_workspace"),   icon="📁"),
-    st.Page("pages/03_🧬_Filter_Lab.py",   title=T("nav_filter_lab"),  icon="🧬"),
-    st.Page("pages/04_📊_Analytics.py",    title=T("nav_analytics"),   icon="📊"),
-    st.Page("pages/05_📋_Export.py",       title=T("nav_export"),      icon="📋"),
+    st.Page("pages/01_🌍_Observatory.py",        title=T("nav_observatory"),  icon="🌍"),
+    st.Page("pages/02_📁_Workspace.py",          title=T("nav_workspace"),    icon="📁"),
+    st.Page("pages/03_🔬_Sequence_Refinery.py",  title=T("nav_refinery"),     icon="🔬"),
+    st.Page("pages/04_🧬_Molecular_Timeline.py", title=T("nav_timeline"),     icon="🧬"),
+    st.Page("pages/05_📊_Analytics.py",          title=T("nav_analytics"),    icon="📊"),
+    st.Page("pages/06_📋_Export.py",             title=T("nav_export"),       icon="📋"),
 ]
 
 pg = st.navigation(_PAGES)
@@ -384,9 +385,17 @@ hr { border-color: #1e293b !important; }
 # Step 4: Render persistent sidebar
 # ---------------------------------------------------------------------------
 def _render_sidebar() -> None:
-    """Minimal sidebar — language toggle (top), filter badge, dataset status, quick actions."""
+    """Minimal sidebar — logo (top), language toggle, filter badge, dataset status, quick actions."""
     with st.sidebar:
-        # ── Language & Theme — TOP of sidebar, always visible ──────────────
+        # ── Logo — very top of sidebar ─────────────────────────────────────
+        try:
+            st.image("assets/Viral_sift_logo.png", use_container_width=True)
+        except Exception:
+            pass  # Silently skip if logo not found
+
+        st.divider()
+
+        # ── Language & Theme — immediately below logo ───────────────────────
         _lang_map = {"🇬🇧 English": "en", "🇷🇺 Русский": "ru"}
         _current = st.session_state.get("language", "en")
         _selected = st.selectbox(
