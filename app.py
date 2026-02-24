@@ -244,6 +244,50 @@ hr { border-color: #e2e8f0 !important; }
 [data-testid="stDataFrame"] thead th {
     background: #f1f5f9 !important; color: #1e3a8a !important; font-weight: 600 !important;
 }
+
+/* ── Sidebar layout: user content ABOVE nav links ── */
+[data-testid="stSidebarContent"] {
+    display: flex !important;
+    flex-direction: column !important;
+}
+[data-testid="stSidebarNav"] {
+    order: 2 !important;
+    border-top: 1px solid rgba(255,255,255,0.18) !important;
+    margin-top: 0.5rem !important;
+    padding-top: 0.25rem !important;
+}
+[data-testid="stSidebarUserContent"] { order: 1 !important; }
+
+/* ── Nav link base style ── */
+[data-testid="stSidebarNav"] a {
+    color: #94a3b8 !important;
+    border-radius: 8px !important;
+    padding: 0.35rem 0.65rem !important;
+    text-decoration: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    transition: background 0.15s ease, color 0.15s ease !important;
+    margin-bottom: 2px !important;
+}
+[data-testid="stSidebarNav"] a:hover {
+    background: rgba(255,255,255,0.12) !important;
+    color: #e0f2fe !important;
+}
+/* ── Active page: crisp cyan-white highlight ── */
+[data-testid="stSidebarNav"] a[aria-current="page"] {
+    background: rgba(125,211,252,0.20) !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    border-left: 3px solid #38bdf8 !important;
+    padding-left: calc(0.65rem - 3px) !important;
+}
+
+/* ── Radio/checkbox contrast on dark sidebar ── */
+[data-testid="stSidebar"] [data-baseweb="radio"] label p { color: #e0f2fe !important; }
+[data-testid="stSidebar"] div[role="radiogroup"] label div:first-child {
+    border-color: rgba(125,211,252,0.7) !important;
+}
 </style>
 """
 
@@ -376,6 +420,50 @@ p, label, .stMarkdown, .stCaption, .stText,
 hr { border-color: #1e293b !important; }
 [data-testid="stDataFrame"] thead th {
     background: #1e293b !important; color: #93c5fd !important; font-weight: 600 !important;
+}
+
+/* ── Sidebar layout: user content ABOVE nav links ── */
+[data-testid="stSidebarContent"] {
+    display: flex !important;
+    flex-direction: column !important;
+}
+[data-testid="stSidebarNav"] {
+    order: 2 !important;
+    border-top: 1px solid rgba(255,255,255,0.14) !important;
+    margin-top: 0.5rem !important;
+    padding-top: 0.25rem !important;
+}
+[data-testid="stSidebarUserContent"] { order: 1 !important; }
+
+/* ── Nav link base style ── */
+[data-testid="stSidebarNav"] a {
+    color: #64748b !important;
+    border-radius: 8px !important;
+    padding: 0.35rem 0.65rem !important;
+    text-decoration: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    transition: background 0.15s ease, color 0.15s ease !important;
+    margin-bottom: 2px !important;
+}
+[data-testid="stSidebarNav"] a:hover {
+    background: rgba(255,255,255,0.10) !important;
+    color: #bae6fd !important;
+}
+/* ── Active page: crisp cyan-white highlight ── */
+[data-testid="stSidebarNav"] a[aria-current="page"] {
+    background: rgba(56,189,248,0.18) !important;
+    color: #e0f2fe !important;
+    font-weight: 700 !important;
+    border-left: 3px solid #38bdf8 !important;
+    padding-left: calc(0.65rem - 3px) !important;
+}
+
+/* ── Radio/checkbox contrast on dark sidebar ── */
+[data-testid="stSidebar"] [data-baseweb="radio"] label p { color: #bae6fd !important; }
+[data-testid="stSidebar"] div[role="radiogroup"] label div:first-child {
+    border-color: rgba(56,189,248,0.7) !important;
 }
 </style>
 """
