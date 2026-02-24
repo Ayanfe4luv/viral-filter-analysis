@@ -300,6 +300,19 @@ with st.expander(f"⚙️ {T('timeline_config_header')}", expanded=True):
             help=T("timeline_rep_logic_help"),
         )
 
+    # Max sequences per month — shown when multiple occurrences exist in a month
+    st.selectbox(
+        T("timeline_max_per_month"),
+        options=[
+            T("timeline_max1"),
+            T("timeline_max2"),
+            T("timeline_maxall"),
+        ],
+        index=0,
+        key="tl_max_per_month",
+        help=T("timeline_max_per_month_help"),
+    )
+
     # Sequence identity guarantee info
     st.info(f"""
 🧬 **{T('timeline_identity_guarantee_header')}**
@@ -381,12 +394,11 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
             rep_name = row.get("representative", seq_hash)
             display_name = f"{rep_name}-like (n={int(row['count'])})"
 
-            # Months present
+            # Months present — strftime avoids Period NaT comparison issues
+            # that silently empty the list in pandas 2.x.
             try:
-                cluster_seqs["_month"] = pd.to_datetime(
-                    cluster_seqs["collection_date"], errors="coerce"
-                ).dt.to_period("M")
-                months = sorted(cluster_seqs["_month"].dropna().unique())
+                _dt_col = pd.to_datetime(cluster_seqs["collection_date"], errors="coerce")
+                months = sorted({dt.strftime("%Y-%m") for dt in _dt_col if pd.notna(dt)})
             except Exception:
                 months = []
 
@@ -421,17 +433,39 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
                           "first_seen", "last_seen", "months_active"]
             _month_cols = [c for c in _matrix_df.columns if c not in _meta_cols]
 
-            # Build column config for data_editor
+            # ── Matrix guide banner ───────────────────────────────────────────
+            st.info(T("timeline_matrix_guide"))
+            st.caption(T("timeline_matrix_legend"))
+
+            # ── Column configuration ──────────────────────────────────────────
             _col_config = {
-                "sequence_clone":  st.column_config.TextColumn(T("timeline_col_clone"),    disabled=True, width="large"),
+                "sequence_clone": st.column_config.TextColumn(
+                    T("timeline_col_clone"),
+                    help=T("timeline_col_clone_help"),
+                    disabled=True, width="large",
+                ),
                 "sequence_hash":   None,  # hidden
-                "total_sequences": st.column_config.NumberColumn(T("timeline_col_total"),  disabled=True),
-                "first_seen":      st.column_config.TextColumn(T("timeline_col_first"),    disabled=True),
-                "last_seen":       st.column_config.TextColumn(T("timeline_col_last"),     disabled=True),
-                "months_active":   st.column_config.NumberColumn(T("timeline_col_months"), disabled=True),
+                "total_sequences": st.column_config.NumberColumn(
+                    T("timeline_col_total"),
+                    help=T("timeline_col_total_help"),
+                    disabled=True,
+                ),
+                "first_seen": st.column_config.TextColumn(
+                    T("timeline_col_first"),
+                    help=T("timeline_col_first_help"),
+                    disabled=True,
+                ),
+                "last_seen": st.column_config.TextColumn(
+                    T("timeline_col_last"),
+                    help=T("timeline_col_last_help"),
+                    disabled=True,
+                ),
+                "months_active": st.column_config.NumberColumn(
+                    T("timeline_col_months"),
+                    help=T("timeline_col_months_help"),
+                    disabled=True,
+                ),
             }
-            # First and last month of each row are locked (always selected, not editable)
-            # We handle this by setting anchor months as disabled checkboxes
             for mc in _month_cols:
                 _col_config[mc] = st.column_config.CheckboxColumn(
                     mc,
@@ -441,8 +475,7 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
 
             _display_matrix = _matrix_df.drop(columns=["sequence_hash"])
 
-            # Sparse matrix: clusters that don't span a given month get NaN.
-            # CheckboxColumn requires bool — coerce NaN → False.
+            # Sparse matrix: absent months produce NaN — coerce to bool False.
             for _mc in _month_cols:
                 if _mc in _display_matrix.columns:
                     _display_matrix[_mc] = _display_matrix[_mc].fillna(False).astype(bool)
@@ -488,7 +521,10 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=False):
             edited_mat = st.session_state.get("_tl_edited_matrix", pd.DataFrame())
             month_cols = st.session_state.get("_tl_month_cols", [])
 
-            # Determine representative selection function
+            # How many sequences to pull from a month that has multiple occurrences
+            _max_opt = st.session_state.get("tl_max_per_month", T("timeline_max1"))
+
+            # Determine single-representative selection function (used by max=1 mode)
             _rep_opt = st.session_state.get("tl_rep_logic", T("timeline_rep_quality"))
             if _rep_opt == T("timeline_rep_earliest"):
                 def _pick_rep(grp):
@@ -521,13 +557,31 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=False):
                 for mc in month_cols:
                     if mc in erow and erow[mc]:
                         try:
-                            target_period = pd.Period(mc, freq="M")
+                            # Match by strftime string — consistent with how
+                            # month keys were built (avoids Period NaT issues).
+                            _dt_match = pd.to_datetime(
+                                cluster_seqs["collection_date"], errors="coerce"
+                            )
                             month_seqs = cluster_seqs[
-                                pd.to_datetime(cluster_seqs["collection_date"], errors="coerce")
-                                .dt.to_period("M") == target_period
+                                _dt_match.apply(
+                                    lambda d: d.strftime("%Y-%m") if pd.notna(d) else ""
+                                ) == mc
                             ]
                             if not month_seqs.empty:
-                                selected_seqs.append(_pick_rep(month_seqs))
+                                if _max_opt == T("timeline_maxall"):
+                                    # All occurrences in this month
+                                    selected_seqs.append(month_seqs)
+                                elif _max_opt == T("timeline_max2") and len(month_seqs) >= 2:
+                                    # First + Last within the month
+                                    try:
+                                        _ms_sorted = month_seqs.sort_values("collection_date")
+                                    except Exception:
+                                        _ms_sorted = month_seqs
+                                    selected_seqs.append(_ms_sorted.iloc[[0]])   # earliest
+                                    selected_seqs.append(_ms_sorted.iloc[[-1]])  # latest
+                                else:
+                                    # 1 best representative (default / max2 with only 1 seq)
+                                    selected_seqs.append(_pick_rep(month_seqs))
                         except Exception:
                             pass
 
