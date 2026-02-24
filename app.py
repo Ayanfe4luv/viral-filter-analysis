@@ -191,14 +191,14 @@ p, label, .stMarkdown, .stCaption, .stText,
 
 /* ── Sidebar metrics ── */
 [data-testid="stSidebar"] [data-testid="stMetric"] {
-    background-color: rgba(255, 255, 255, 0.08) !important;
-    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
     border-radius: 10px !important;
     padding: 0.6rem 0.8rem !important;
     box-shadow: none !important;
 }
-[data-testid="stSidebar"] [data-testid="stMetricLabel"] { color: #e0f2fe !important; font-size: 0.85rem !important; }
-[data-testid="stSidebar"] [data-testid="stMetricValue"] { color: #ffffff !important; }
+[data-testid="stSidebar"] [data-testid="stMetricLabel"] { color: #bae6fd !important; font-size: 0.85rem !important; font-weight: 600 !important; }
+[data-testid="stSidebar"] [data-testid="stMetricValue"] { color: #ffffff !important; font-weight: 700 !important; }
 
 /* ── Main content metrics ── */
 [data-testid="stMetric"] {
@@ -245,42 +245,29 @@ hr { border-color: #e2e8f0 !important; }
     background: #f1f5f9 !important; color: #1e3a8a !important; font-weight: 600 !important;
 }
 
-/* ── Sidebar layout: user content ABOVE nav links ── */
-[data-testid="stSidebarContent"] {
-    display: flex !important;
-    flex-direction: column !important;
-}
-[data-testid="stSidebarNav"] {
-    order: 2 !important;
-    border-top: 1px solid rgba(255,255,255,0.18) !important;
-    margin-top: 0.5rem !important;
-    padding-top: 0.25rem !important;
-}
-[data-testid="stSidebarUserContent"] { order: 1 !important; }
+/* ── Hide built-in stSidebarNav (replaced by manual st.page_link() in _render_sidebar) ── */
+[data-testid="stSidebarNav"] { display: none !important; }
 
-/* ── Nav link base style ── */
-[data-testid="stSidebarNav"] a {
-    color: #94a3b8 !important;
-    border-radius: 8px !important;
-    padding: 0.35rem 0.65rem !important;
+/* ── Manual nav links (st.page_link) — bold white, hover highlight ── */
+[data-testid="stSidebar"] [data-testid="stPageLink"] a {
+    font-weight: 700 !important;
+    color: #e0f2fe !important;
     text-decoration: none !important;
     display: flex !important;
     align-items: center !important;
     gap: 0.4rem !important;
+    padding: 0.35rem 0.6rem !important;
+    border-radius: 8px !important;
     transition: background 0.15s ease, color 0.15s ease !important;
     margin-bottom: 2px !important;
 }
-[data-testid="stSidebarNav"] a:hover {
-    background: rgba(255,255,255,0.12) !important;
-    color: #e0f2fe !important;
-}
-/* ── Active page: crisp cyan-white highlight ── */
-[data-testid="stSidebarNav"] a[aria-current="page"] {
-    background: rgba(125,211,252,0.20) !important;
+[data-testid="stSidebar"] [data-testid="stPageLink"] a:hover {
+    background: rgba(255,255,255,0.15) !important;
     color: #ffffff !important;
+}
+[data-testid="stSidebar"] [data-testid="stPageLink"] p {
     font-weight: 700 !important;
-    border-left: 3px solid #38bdf8 !important;
-    padding-left: calc(0.65rem - 3px) !important;
+    color: #e0f2fe !important;
 }
 
 /* ── Radio/checkbox contrast on dark sidebar ── */
@@ -375,14 +362,14 @@ p, label, .stMarkdown, .stCaption, .stText,
 
 /* ── Sidebar metrics ── */
 [data-testid="stSidebar"] [data-testid="stMetric"] {
-    background-color: rgba(255, 255, 255, 0.06) !important;
-    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
     border-radius: 10px !important;
     padding: 0.6rem 0.8rem !important;
     box-shadow: none !important;
 }
-[data-testid="stSidebar"] [data-testid="stMetricLabel"] { color: #94a3b8 !important; font-size: 0.85rem !important; }
-[data-testid="stSidebar"] [data-testid="stMetricValue"] { color: #7dd3fc !important; }
+[data-testid="stSidebar"] [data-testid="stMetricLabel"] { color: #94a3b8 !important; font-size: 0.85rem !important; font-weight: 600 !important; }
+[data-testid="stSidebar"] [data-testid="stMetricValue"] { color: #7dd3fc !important; font-weight: 700 !important; }
 
 /* ── Main content metrics ── */
 [data-testid="stMetric"] {
@@ -422,42 +409,29 @@ hr { border-color: #1e293b !important; }
     background: #1e293b !important; color: #93c5fd !important; font-weight: 600 !important;
 }
 
-/* ── Sidebar layout: user content ABOVE nav links ── */
-[data-testid="stSidebarContent"] {
-    display: flex !important;
-    flex-direction: column !important;
-}
-[data-testid="stSidebarNav"] {
-    order: 2 !important;
-    border-top: 1px solid rgba(255,255,255,0.14) !important;
-    margin-top: 0.5rem !important;
-    padding-top: 0.25rem !important;
-}
-[data-testid="stSidebarUserContent"] { order: 1 !important; }
+/* ── Hide built-in stSidebarNav (replaced by manual st.page_link() in _render_sidebar) ── */
+[data-testid="stSidebarNav"] { display: none !important; }
 
-/* ── Nav link base style ── */
-[data-testid="stSidebarNav"] a {
-    color: #64748b !important;
-    border-radius: 8px !important;
-    padding: 0.35rem 0.65rem !important;
+/* ── Manual nav links (st.page_link) — bold white, hover highlight ── */
+[data-testid="stSidebar"] [data-testid="stPageLink"] a {
+    font-weight: 700 !important;
+    color: #bae6fd !important;
     text-decoration: none !important;
     display: flex !important;
     align-items: center !important;
     gap: 0.4rem !important;
+    padding: 0.35rem 0.6rem !important;
+    border-radius: 8px !important;
     transition: background 0.15s ease, color 0.15s ease !important;
     margin-bottom: 2px !important;
 }
-[data-testid="stSidebarNav"] a:hover {
-    background: rgba(255,255,255,0.10) !important;
-    color: #bae6fd !important;
-}
-/* ── Active page: crisp cyan-white highlight ── */
-[data-testid="stSidebarNav"] a[aria-current="page"] {
+[data-testid="stSidebar"] [data-testid="stPageLink"] a:hover {
     background: rgba(56,189,248,0.18) !important;
-    color: #e0f2fe !important;
+    color: #ffffff !important;
+}
+[data-testid="stSidebar"] [data-testid="stPageLink"] p {
     font-weight: 700 !important;
-    border-left: 3px solid #38bdf8 !important;
-    padding-left: calc(0.65rem - 3px) !important;
+    color: #bae6fd !important;
 }
 
 /* ── Radio/checkbox contrast on dark sidebar ── */
@@ -473,17 +447,22 @@ hr { border-color: #1e293b !important; }
 # Step 4: Render persistent sidebar
 # ---------------------------------------------------------------------------
 def _render_sidebar() -> None:
-    """Minimal sidebar — logo (top), language toggle, filter badge, dataset status, quick actions."""
+    """Persistent sidebar: branding → lang/theme → nav → filters → dataset status → actions."""
     with st.sidebar:
-        # ── Logo — very top of sidebar ─────────────────────────────────────
+        # ── Logo ─────────────────────────────────────────────────────────────
         try:
             st.image("assets/Viral_sift_logo.png", use_container_width=True)
         except Exception:
             pass  # Silently skip if logo not found
 
+        # ── App branding — very top, above all controls ──────────────────────
+        st.markdown(f"## 🧬 {T('app_title')}")
+        st.markdown(f"<span style='color:#7dd3fc;font-size:0.85rem;font-style:italic'>{T('app_subtitle')}</span>", unsafe_allow_html=True)
+
         st.divider()
 
-        # ── Language & Theme — immediately below logo ───────────────────────
+        # ── Language — bold white label + collapsed widget label ────────────
+        st.markdown(f"<b style='color:#ffffff;font-size:0.9rem'>{T('sidebar_language')}</b>", unsafe_allow_html=True)
         _lang_map = {"🇬🇧 English": "en", "🇷🇺 Русский": "ru"}
         _current = st.session_state.get("language", "en")
         _selected = st.selectbox(
@@ -491,12 +470,14 @@ def _render_sidebar() -> None:
             options=list(_lang_map.keys()),
             index=0 if _current == "en" else 1,
             key="language_selector",
-            label_visibility="visible",
+            label_visibility="collapsed",
         )
         if _lang_map[_selected] != _current:
             st.session_state["language"] = _lang_map[_selected]
             st.rerun()
 
+        # ── Theme — bold white label + radio, default Light ─────────────────
+        st.markdown(f"<b style='color:#ffffff;font-size:0.9rem'>{T('sidebar_theme')}</b>", unsafe_allow_html=True)
         _current_theme = st.session_state.get("theme", "light")
         _theme_selected = st.radio(
             T("sidebar_theme"),
@@ -504,6 +485,7 @@ def _render_sidebar() -> None:
             index=0 if _current_theme == "light" else 1,
             horizontal=True,
             key="theme_selector",
+            label_visibility="collapsed",
         )
         _new_theme = "light" if _theme_selected == T("theme_light") else "dark"
         if _new_theme != _current_theme:
@@ -512,9 +494,15 @@ def _render_sidebar() -> None:
 
         st.divider()
 
-        # ── App branding ─────────────────────────────────────────────────────
-        st.markdown(f"### 🧬 {T('app_title')}")
-        st.markdown(f"*{T('app_subtitle')}*")
+        # ── Navigation — bold page links ABOVE Global Filters ────────────────
+        st.markdown(f"<b style='color:#ffffff;font-size:0.9rem'>{T('sidebar_navigation')}</b>", unsafe_allow_html=True)
+        st.page_link("pages/01_🌍_Observatory.py",        label=f"🌍 {T('nav_observatory')}")
+        st.page_link("pages/02_📁_Workspace.py",          label=f"📁 {T('nav_workspace')}")
+        st.page_link("pages/03_🔬_Sequence_Refinery.py",  label=f"🔬 {T('nav_refinery')}")
+        st.page_link("pages/04_🧬_Molecular_Timeline.py", label=f"🧬 {T('nav_timeline')}")
+        st.page_link("pages/05_📊_Analytics.py",          label=f"📊 {T('nav_analytics')}")
+        st.page_link("pages/06_📋_Export.py",             label=f"📋 {T('nav_export')}")
+
         st.divider()
 
         # --- Global Filter Badge ---
