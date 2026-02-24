@@ -291,6 +291,7 @@
   "sidebar_theme": "Тема оформления",
   "theme_light": "Светлая",
   "theme_dark": "Тёмная",
+  "sidebar_navigation": "Навигация",
   "analytics_overview_header": "Обзор датасета",
   "analytics_gauge_sequences": "Всего последовательностей",
   "analytics_gauge_length": "Средняя длина последовательности",

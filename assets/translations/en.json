@@ -291,6 +291,7 @@
   "sidebar_theme": "Theme",
   "theme_light": "Light",
   "theme_dark": "Dark",
+  "sidebar_navigation": "Navigation",
   "analytics_overview_header": "Dataset Overview",
   "analytics_gauge_sequences": "Total Sequences",
   "analytics_gauge_length": "Avg Sequence Length",
