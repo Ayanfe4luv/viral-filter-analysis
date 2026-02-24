@@ -28,11 +28,20 @@ import streamlit as st
 from utils.minimal_i18n import T
 
 # ─────────────────────────────────────────────────────────────────────────────
-# State
+# State — respect global Data Mode toggle (sidebar)
 # ─────────────────────────────────────────────────────────────────────────────
-_active_df: pd.DataFrame  = st.session_state.get("active_df",   pd.DataFrame())
+_active_df: pd.DataFrame   = st.session_state.get("active_df",   pd.DataFrame())
 _filtered_df: pd.DataFrame = st.session_state.get("filtered_df", pd.DataFrame())
-_display_df = _filtered_df if not _filtered_df.empty else _active_df
+_data_mode = st.session_state.get("data_mode", "current")
+
+if _data_mode == "original":
+    # Original mode: always use the raw activation snapshot
+    _display_df = _active_df
+    _mode_badge = "🟡 Original"
+else:
+    # Current mode: prefer filtered, fall back to active
+    _display_df = _filtered_df if not _filtered_df.empty else _active_df
+    _mode_badge = "🔵 Current" if not _filtered_df.empty else "🔵 Current (Active)"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Page header
@@ -201,8 +210,13 @@ if not _has_dates:
 
 # Build major clusters above threshold
 @st.cache_data(show_spinner=False)
-def _build_clusters(df_hash: str, min_n: int) -> pd.DataFrame:
-    """Cache on df hash + threshold — avoids recompute on every widget interaction."""
+def _build_clusters(_df_hash: str, min_n: int) -> pd.DataFrame:
+    """Cache on df hash + threshold — avoids recompute on every widget interaction.
+
+    _df_hash is an intentional @st.cache_data discriminator: Streamlit uses it
+    as a cache key so the function re-runs when the underlying DataFrame changes.
+    The leading underscore suppresses the unused-parameter linter hint.
+    """
     df = st.session_state.get("active_df", pd.DataFrame())
     if st.session_state.get("filtered_df") is not None and not st.session_state["filtered_df"].empty:
         df = st.session_state["filtered_df"]
