@@ -426,5 +426,24 @@
   "use_case_tip_upload": "💡 Tip: Upload your RSV or influenza FASTA, then activate it in Workspace to begin.",
   "use_case_tip_filter": "💡 Tip: Use Sequence Refinery to set minimum length (≥ 14,000 bp for RSV genome) and remove sequences with > 5% ambiguous bases.",
   "use_case_tip_timeline": "💡 Tip: Use Molecular Timeline to track if the same RSV clone persisted across two consecutive seasons.",
-  "use_case_tip_analytics": "💡 Tip: Use Analytics → Stacked Bar to compare RSV-A vs RSV-B prevalence by month."
+  "use_case_tip_analytics": "💡 Tip: Use Analytics → Stacked Bar to compare RSV-A vs RSV-B prevalence by month.",
+
+  "workspace_loaded_files": "Loaded Files",
+  "workspace_select_activate": "Select file(s) to activate (select multiple to merge):",
+  "workspace_building_df": "Building active DataFrame…",
+  "workspace_activated_success": "✅ Activated {n:,} sequences from {files} file(s) into active dataset.",
+  "workspace_remove_btn": "Remove Selected",
+  "workspace_active_dataset": "Active Dataset",
+  "workspace_earliest": "Earliest",
+  "workspace_latest": "Latest",
+  "workspace_top_subtypes": "**Top Subtypes:**",
+  "workspace_url_expander": "🌐 Download FASTA from URL",
+  "workspace_url_input_label": "FASTA URL (direct link to .fasta, .fa, .gz, .zip):",
+  "workspace_url_fetch_btn": "Fetch from URL",
+  "workspace_url_no_seqs": "No sequences found at that URL.",
+  "workspace_url_fetch_failed": "Fetch failed: {error}",
+
+  "timeline_singletons_included": "↪ {n} singleton/rare sequences (clusters < {total} threshold) auto-included as First+Last anchors.",
+  "timeline_diag_axis_count": "Sequences in Cluster",
+  "timeline_diag_axis_clone": "Clone"
 }
