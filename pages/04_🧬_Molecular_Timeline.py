@@ -115,48 +115,141 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
 
     # Top duplicate clusters preview
     if unique_hashes < total_seqs:
+        # Build full cluster summary (all sizes) for sunburst + top-N for bar
+        _has_dates_d   = "collection_date" in _display_df.columns
+        _has_subtype_d = "subtype" in _display_df.columns
+        _has_isolate_d = "isolate" in _display_df.columns
+
+        _agg_spec: dict = {
+            "count":          ("sequence_hash", "size"),
+            "representative": ("isolate", "first") if _has_isolate_d else ("sequence_hash", "first"),
+        }
+        if _has_dates_d:
+            _agg_spec["first_date"] = ("collection_date", "min")
+            _agg_spec["last_date"]  = ("collection_date", "max")
+        if _has_subtype_d:
+            _agg_spec["subtype"] = ("subtype", "first")
+
         cluster_summary = (
             _display_df.groupby("sequence_hash")
-            .agg(
-                count=("sequence_hash", "size"),
-                first_date=("collection_date", "min") if "collection_date" in _display_df.columns else ("sequence_hash", "first"),
-                last_date=("collection_date", "max")  if "collection_date" in _display_df.columns else ("sequence_hash", "last"),
-                representative=("isolate", "first") if "isolate" in _display_df.columns else ("sequence_hash", "first"),
-            )
-            .query("count >= 2")
+            .agg(**_agg_spec)
             .sort_values("count", ascending=False)
-            .head(15)
             .reset_index(drop=True)
         )
+
         st.subheader(T("timeline_top_clusters"))
         try:
             import plotly.express as _px_diag
-            _diag_plot = cluster_summary.head(10).sort_values("count")
-            _fig_diag = _px_diag.bar(
-                _diag_plot,
-                x="count",
-                y="representative",
-                orientation="h",
-                labels={"count": T("timeline_diag_axis_count"), "representative": T("timeline_diag_axis_clone")},
-                color="count",
-                color_continuous_scale="Blues",
-            )
-            _fig_diag.update_layout(
-                margin=dict(t=10, b=0, l=0, r=20),
-                height=max(180, len(_diag_plot) * 30 + 60),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                coloraxis_showscale=False,
-                yaxis_title=None,
-            )
-            st.plotly_chart(_fig_diag, use_container_width=True)
-        except Exception:
-            st.dataframe(cluster_summary, use_container_width=True, hide_index=True)
 
-        # CSV download of cluster summary
+            _col_bar, _col_sun = st.columns([2, 1])
+
+            # ── Left: enhanced horizontal bar (top 12 multi-sequence clusters) ──
+            with _col_bar:
+                _diag_plot = cluster_summary.query("count >= 2").head(12).sort_values("count").copy()
+
+                # Color by circulation duration (days) when dates are available
+                if _has_dates_d and "first_date" in _diag_plot.columns and "last_date" in _diag_plot.columns:
+                    try:
+                        _diag_plot["_duration"] = (
+                            pd.to_datetime(_diag_plot["last_date"],  errors="coerce") -
+                            pd.to_datetime(_diag_plot["first_date"], errors="coerce")
+                        ).dt.days.fillna(0).clip(lower=0).astype(int)
+                        _color_col  = "_duration"
+                        _cbar_title = "Days in circulation"
+                        _cdata      = ["first_date", "last_date"]
+                        _hover_tmpl = (
+                            "<b>%{y}</b><br>"
+                            "Sequences: %{x}<br>"
+                            "First seen: %{customdata[0]}<br>"
+                            "Last seen: %{customdata[1]}<extra></extra>"
+                        )
+                    except Exception:
+                        _color_col  = "count"
+                        _cbar_title = T("timeline_diag_axis_count")
+                        _cdata      = []
+                        _hover_tmpl = "<b>%{y}</b><br>Sequences: %{x}<extra></extra>"
+                else:
+                    _color_col  = "count"
+                    _cbar_title = T("timeline_diag_axis_count")
+                    _cdata      = []
+                    _hover_tmpl = "<b>%{y}</b><br>Sequences: %{x}<extra></extra>"
+
+                _fig_diag = _px_diag.bar(
+                    _diag_plot,
+                    x="count",
+                    y="representative",
+                    orientation="h",
+                    color=_color_col,
+                    color_continuous_scale="Blues",
+                    custom_data=_cdata,
+                )
+                _fig_diag.update_traces(hovertemplate=_hover_tmpl)
+                _fig_diag.update_layout(
+                    margin=dict(t=10, b=0, l=0, r=10),
+                    height=max(240, len(_diag_plot) * 34 + 60),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    coloraxis_showscale=True,
+                    coloraxis_colorbar=dict(title=_cbar_title, thickness=12, len=0.7),
+                    yaxis_title=None,
+                    xaxis_title=T("timeline_diag_axis_count"),
+                )
+                st.plotly_chart(_fig_diag, use_container_width=True)
+
+            # ── Right: multi-level sunburst (size bucket × subtype) ─────────────
+            with _col_sun:
+                st.caption(T("timeline_cluster_dist_title"))
+
+                def _size_bucket(n: int) -> str:
+                    if n == 1:  return T("timeline_cluster_singletons")
+                    if n <= 4:  return T("timeline_cluster_small")
+                    if n <= 9:  return T("timeline_cluster_medium")
+                    if n <= 19: return T("timeline_cluster_large")
+                    return T("timeline_cluster_major")
+
+                _sun_df = cluster_summary.copy()
+                _sun_df["size_bucket"] = _sun_df["count"].apply(_size_bucket)
+
+                if _has_subtype_d and "subtype" in _sun_df.columns:
+                    _sun_agg = (
+                        _sun_df.groupby(["size_bucket", "subtype"], dropna=False)
+                        .agg(total=("count", "sum"))
+                        .reset_index()
+                    )
+                    _sun_path = ["size_bucket", "subtype"]
+                else:
+                    _sun_agg = (
+                        _sun_df.groupby("size_bucket")
+                        .agg(total=("count", "sum"))
+                        .reset_index()
+                    )
+                    _sun_path = ["size_bucket"]
+
+                _fig_sun = _px_diag.sunburst(
+                    _sun_agg,
+                    path=_sun_path,
+                    values="total",
+                    color="total",
+                    color_continuous_scale="Blues",
+                )
+                _fig_sun.update_layout(
+                    margin=dict(t=0, b=0, l=0, r=0),
+                    height=max(240, len(_diag_plot) * 34 + 60),
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    coloraxis_showscale=False,
+                )
+                st.plotly_chart(_fig_sun, use_container_width=True)
+
+        except Exception:
+            st.dataframe(
+                cluster_summary.query("count >= 2").head(15),
+                use_container_width=True, hide_index=True,
+            )
+
+        # CSV download of full cluster summary (duplicate clusters only)
         st.download_button(
             label=T("timeline_download_cluster_csv"),
-            data=cluster_summary.to_csv(index=False).encode("utf-8"),
+            data=cluster_summary.query("count >= 2").to_csv(index=False).encode("utf-8"),
             file_name=f"timeline_clusters_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
             mime="text/csv",
             use_container_width=True,
@@ -442,67 +535,85 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=False):
                         st.caption(T("timeline_singletons_included",
                                      n=len(_sing_df), total=len(_small_hashes)))
 
-                # Before / After preview
-                prev1, prev2 = st.columns(2)
-                with prev1:
-                    st.subheader(T("timeline_before_label"))
-                    st.metric(T("timeline_total_sequences"), f"{len(_display_df):,}")
-                    # Temporal chart
+                # ── Overlaid epidemic curve: grey mountain (raw) + blue bars (curated) ──
+                try:
+                    import plotly.graph_objects as _go_imp
+
                     if "collection_date" in _display_df.columns:
-                        try:
-                            import plotly.express as px
-                            raw_ts = (
-                                pd.to_datetime(_display_df["collection_date"], errors="coerce")
-                                .dt.to_period("M").astype(str)
-                                .value_counts().sort_index().reset_index()
-                            )
-                            raw_ts.columns = ["Month", "Count"]
-                            fig_raw = px.bar(raw_ts, x="Month", y="Count",
-                                             title=T("timeline_raw_chart_title"),
-                                             color_discrete_sequence=["#94a3b8"])
-                            fig_raw.update_layout(margin=dict(t=30, b=0), height=260,
-                                                  paper_bgcolor="rgba(0,0,0,0)",
-                                                  plot_bgcolor="rgba(0,0,0,0)")
-                            st.plotly_chart(fig_raw, use_container_width=True)
-                        except ImportError:
-                            pass
+                        _raw_ts = (
+                            pd.to_datetime(_display_df["collection_date"], errors="coerce")
+                            .dt.to_period("M").astype(str)
+                            .value_counts().sort_index().reset_index()
+                        )
+                        _raw_ts.columns = ["Month", "Count"]
 
-                with prev2:
-                    st.subheader(T("timeline_after_label"))
-                    delta = len(result_df) - len(_display_df)
-                    st.metric(T("timeline_curated_seqs"),
-                              f"{len(result_df):,}", delta=f"{delta:,}")
-                    if "collection_date" in result_df.columns:
-                        try:
-                            import plotly.express as px
-                            cur_ts = (
-                                pd.to_datetime(result_df["collection_date"], errors="coerce")
-                                .dt.to_period("M").astype(str)
-                                .value_counts().sort_index().reset_index()
-                            )
-                            cur_ts.columns = ["Month", "Count"]
-                            fig_cur = px.bar(cur_ts, x="Month", y="Count",
-                                             title=T("timeline_curated_chart_title"),
-                                             color_discrete_sequence=["#0ea5e9"])
-                            fig_cur.update_layout(margin=dict(t=30, b=0), height=260,
-                                                  paper_bgcolor="rgba(0,0,0,0)",
-                                                  plot_bgcolor="rgba(0,0,0,0)")
-                            st.plotly_chart(fig_cur, use_container_width=True)
-                        except ImportError:
-                            pass
+                        _cur_ts = (
+                            pd.to_datetime(result_df["collection_date"], errors="coerce")
+                            .dt.to_period("M").astype(str)
+                            .value_counts().sort_index().reset_index()
+                        ) if "collection_date" in result_df.columns else pd.DataFrame(columns=["Month", "Count"])
+                        _cur_ts.columns = ["Month", "Count"] if not _cur_ts.empty else _cur_ts.columns
 
-                # Curation impact metrics
+                        _all_months = sorted(set(_raw_ts["Month"]) | set(_cur_ts["Month"]))
+                        _raw_lookup = dict(zip(_raw_ts["Month"], _raw_ts["Count"]))
+                        _cur_lookup = dict(zip(_cur_ts["Month"], _cur_ts["Count"])) if not _cur_ts.empty else {}
+                        _raw_y = [_raw_lookup.get(m, 0) for m in _all_months]
+                        _cur_y = [_cur_lookup.get(m, 0) for m in _all_months]
+
+                        _fig_imp = _go_imp.Figure()
+                        # Grey filled mountain — raw / all sequences
+                        _fig_imp.add_trace(_go_imp.Scatter(
+                            x=_all_months, y=_raw_y,
+                            fill="tozeroy",
+                            mode="lines",
+                            line=dict(color="#94a3b8", width=1.5),
+                            fillcolor="rgba(148,163,184,0.25)",
+                            name=T("timeline_raw_label"),
+                            hovertemplate="%{x}<br>Raw: %{y:,}<extra></extra>",
+                        ))
+                        # Blue bars — curated foreground
+                        _fig_imp.add_trace(_go_imp.Bar(
+                            x=_all_months, y=_cur_y,
+                            name=T("timeline_curated_label"),
+                            marker_color="#0ea5e9",
+                            opacity=0.85,
+                            hovertemplate="%{x}<br>Curated: %{y:,}<extra></extra>",
+                        ))
+                        _fig_imp.update_layout(
+                            title=T("timeline_impact_chart_title"),
+                            barmode="overlay",
+                            margin=dict(t=40, b=0, l=0, r=0),
+                            height=300,
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="rgba(0,0,0,0)",
+                            legend=dict(orientation="h", y=1.14, x=0),
+                            xaxis=dict(tickangle=-45),
+                        )
+                        st.plotly_chart(_fig_imp, use_container_width=True)
+                except Exception:
+                    pass
+
+                # ── 4-card curation impact metrics ────────────────────────────────
                 st.divider()
                 st.subheader(T("timeline_curation_impact"))
-                im1, im2, im3 = st.columns(3)
+
                 compression = (1 - len(result_df) / max(len(_display_df), 1)) * 100
-                im1.metric(T("timeline_compression"),    f"{compression:.1f}%")
+                _seqs_removed = len(_display_df) - len(result_df)
+                _coverage_str = "N/A"
                 if "collection_date" in _display_df.columns and "collection_date" in result_df.columns:
-                    raw_periods = pd.to_datetime(_display_df["collection_date"], errors="coerce").dt.to_period("M").nunique()
-                    cur_periods = pd.to_datetime(result_df["collection_date"], errors="coerce").dt.to_period("M").nunique()
-                    coverage = cur_periods / max(raw_periods, 1) * 100
-                    im2.metric(T("timeline_coverage"), f"{coverage:.0f}%")
-                im3.metric(T("timeline_clones_retained"), f"{result_df['sequence_hash'].nunique():,}")
+                    _raw_periods = pd.to_datetime(_display_df["collection_date"], errors="coerce").dt.to_period("M").nunique()
+                    _cur_periods = pd.to_datetime(result_df["collection_date"], errors="coerce").dt.to_period("M").nunique()
+                    _coverage_str = f"{(_cur_periods / max(_raw_periods, 1) * 100):.0f}%"
+
+                im1, im2, im3, im4 = st.columns(4)
+                im1.metric(
+                    T("timeline_total_sequences"),
+                    f"{len(_display_df):,} → {len(result_df):,}",
+                    help="Sequence count before and after timeline curation.",
+                )
+                im2.metric(T("timeline_compression"), f"{compression:.1f}%")
+                im3.metric(T("timeline_seqs_removed"), f"{_seqs_removed:,}")
+                im4.metric(T("timeline_coverage"), _coverage_str)
 
                 # Store result
                 st.session_state["filtered_df"] = result_df
