@@ -75,7 +75,12 @@ def _init_session_state() -> None:
         "action_logs": [],          # Filter operation records for export
 
         # --- Theme ---
-        "theme": "light",           # 'light' | 'dark'
+        "theme": "light",           # 'light' | 'dark' | 'auto'
+
+        # --- Data Mode ---
+        # 'current'  → filtered_df if available, else active_df
+        # 'original' → always active_df (raw snapshot from activation)
+        "data_mode": "current",
     }
     for key, default in defaults.items():
         if key not in st.session_state:
@@ -197,8 +202,30 @@ p, label, .stMarkdown, .stCaption, .stText,
     padding: 0.6rem 0.8rem !important;
     box-shadow: none !important;
 }
-[data-testid="stSidebar"] [data-testid="stMetricLabel"] { color: #bae6fd !important; font-size: 0.85rem !important; font-weight: 600 !important; }
-[data-testid="stSidebar"] [data-testid="stMetricValue"] { color: #ffffff !important; font-weight: 700 !important; }
+/* stMetricLabel — target container AND its nested p/div/span to beat the general p-rule (0,1,1) */
+[data-testid="stSidebar"] [data-testid="stMetricLabel"],
+[data-testid="stSidebar"] [data-testid="stMetricLabel"] p,
+[data-testid="stSidebar"] [data-testid="stMetricLabel"] div,
+[data-testid="stSidebar"] [data-testid="stMetricLabel"] span {
+    color: #bae6fd !important; font-size: 0.82rem !important; font-weight: 600 !important;
+}
+/* stMetricValue — same pattern */
+[data-testid="stSidebar"] [data-testid="stMetricValue"],
+[data-testid="stSidebar"] [data-testid="stMetricValue"] p,
+[data-testid="stSidebar"] [data-testid="stMetricValue"] div,
+[data-testid="stSidebar"] [data-testid="stMetricValue"] span {
+    color: #ffffff !important; font-weight: 700 !important; font-size: 1.1rem !important;
+}
+/* ── Section heading bold/strong: override general p-rule bleed (0,2,1 > 0,1,1) ── */
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] b,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] strong {
+    color: #ffffff !important; font-size: 0.9rem !important;
+}
+/* ── Page link text: beat the general p-rule ── */
+[data-testid="stSidebar"] [data-testid="stPageLink"] p,
+[data-testid="stSidebar"] [data-testid="stPageLink"] span {
+    color: #e0f2fe !important; font-weight: 700 !important; font-size: 0.9rem !important;
+}
 
 /* ── Main content metrics ── */
 [data-testid="stMetric"] {
@@ -368,8 +395,30 @@ p, label, .stMarkdown, .stCaption, .stText,
     padding: 0.6rem 0.8rem !important;
     box-shadow: none !important;
 }
-[data-testid="stSidebar"] [data-testid="stMetricLabel"] { color: #94a3b8 !important; font-size: 0.85rem !important; font-weight: 600 !important; }
-[data-testid="stSidebar"] [data-testid="stMetricValue"] { color: #7dd3fc !important; font-weight: 700 !important; }
+/* stMetricLabel — target container AND nested p/div/span to beat general p-rule (0,1,1) */
+[data-testid="stSidebar"] [data-testid="stMetricLabel"],
+[data-testid="stSidebar"] [data-testid="stMetricLabel"] p,
+[data-testid="stSidebar"] [data-testid="stMetricLabel"] div,
+[data-testid="stSidebar"] [data-testid="stMetricLabel"] span {
+    color: #94a3b8 !important; font-size: 0.82rem !important; font-weight: 600 !important;
+}
+/* stMetricValue — same pattern */
+[data-testid="stSidebar"] [data-testid="stMetricValue"],
+[data-testid="stSidebar"] [data-testid="stMetricValue"] p,
+[data-testid="stSidebar"] [data-testid="stMetricValue"] div,
+[data-testid="stSidebar"] [data-testid="stMetricValue"] span {
+    color: #7dd3fc !important; font-weight: 700 !important; font-size: 1.1rem !important;
+}
+/* ── Section heading bold/strong: override general p-rule bleed (0,2,1 > 0,1,1) ── */
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] b,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] strong {
+    color: #ffffff !important; font-size: 0.9rem !important;
+}
+/* ── Page link text: beat the general p-rule ── */
+[data-testid="stSidebar"] [data-testid="stPageLink"] p,
+[data-testid="stSidebar"] [data-testid="stPageLink"] span {
+    color: #bae6fd !important; font-weight: 700 !important; font-size: 0.9rem !important;
+}
 
 /* ── Main content metrics ── */
 [data-testid="stMetric"] {
@@ -476,20 +525,49 @@ def _render_sidebar() -> None:
             st.session_state["language"] = _lang_map[_selected]
             st.rerun()
 
-        # ── Theme — bold white label + radio, default Light ─────────────────
+        # ── Theme — Light / Dark / 🔄 Auto (time-based) ────────────────────
         st.markdown(f"<b style='color:#ffffff;font-size:0.9rem'>{T('sidebar_theme')}</b>", unsafe_allow_html=True)
         _current_theme = st.session_state.get("theme", "light")
+        _hour_now = pd.Timestamp.now().hour
+        _auto_icon  = "🌙" if (_hour_now < 8 or _hour_now >= 20) else "☀️"
+        _auto_lbl   = f"{T('theme_auto')} ({_auto_icon} {pd.Timestamp.now().strftime('%H:%M')})"
+        _theme_opts = [T("theme_light"), T("theme_dark"), _auto_lbl]
+        _theme_idx  = 1 if _current_theme == "dark" else (2 if _current_theme == "auto" else 0)
         _theme_selected = st.radio(
             T("sidebar_theme"),
-            options=[T("theme_light"), T("theme_dark")],
-            index=0 if _current_theme == "light" else 1,
-            horizontal=True,
+            options=_theme_opts,
+            index=_theme_idx,
+            horizontal=False,
             key="theme_selector",
             label_visibility="collapsed",
         )
-        _new_theme = "light" if _theme_selected == T("theme_light") else "dark"
+        if _theme_selected == T("theme_light"):
+            _new_theme = "light"
+        elif _theme_selected == T("theme_dark"):
+            _new_theme = "dark"
+        else:
+            _new_theme = "auto"
         if _new_theme != _current_theme:
             st.session_state["theme"] = _new_theme
+            st.rerun()
+
+        st.divider()
+
+        # ── Data Mode — Current (filtered) vs Original (pre-filter) ─────────
+        st.markdown(f"<b style='color:#ffffff;font-size:0.9rem'>{T('sidebar_data_mode')}</b>", unsafe_allow_html=True)
+        _cur_mode  = st.session_state.get("data_mode", "current")
+        _mode_opts = [T("sidebar_mode_current"), T("sidebar_mode_original")]
+        _mode_sel  = st.radio(
+            T("sidebar_data_mode"),
+            options=_mode_opts,
+            index=1 if _cur_mode == "original" else 0,
+            key="data_mode_radio",
+            label_visibility="collapsed",
+            help=T("sidebar_mode_current_help") if _cur_mode == "current" else T("sidebar_mode_original_help"),
+        )
+        _new_mode = "original" if _mode_sel == T("sidebar_mode_original") else "current"
+        if _new_mode != _cur_mode:
+            st.session_state["data_mode"] = _new_mode
             st.rerun()
 
         st.divider()
@@ -574,7 +652,12 @@ def _render_sidebar() -> None:
 # ---------------------------------------------------------------------------
 # Step 4b: Inject CSS theme
 # ---------------------------------------------------------------------------
-_active_theme = st.session_state.get("theme", "light")
+_stored_theme = st.session_state.get("theme", "light")
+if _stored_theme == "auto":
+    _hour_now = pd.Timestamp.now().hour
+    _active_theme = "dark" if (_hour_now < 8 or _hour_now >= 20) else "light"
+else:
+    _active_theme = _stored_theme
 st.markdown(_DARK_CSS if _active_theme == "dark" else _LIGHT_CSS, unsafe_allow_html=True)
 
 _render_sidebar()
