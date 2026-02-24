@@ -330,16 +330,13 @@ if not _has_dates:
 
 # Build major clusters above threshold
 @st.cache_data(show_spinner=False)
-def _build_clusters(_df_hash: str, min_n: int) -> pd.DataFrame:
-    """Cache on df hash + threshold — avoids recompute on every widget interaction.
+def _build_clusters(df: pd.DataFrame, min_n: int) -> pd.DataFrame:
+    """Cache on df content + threshold — avoids recompute on every widget interaction.
 
-    _df_hash is an intentional @st.cache_data discriminator: Streamlit uses it
-    as a cache key so the function re-runs when the underlying DataFrame changes.
-    The leading underscore suppresses the unused-parameter linter hint.
+    df is passed directly so @st.cache_data hashes it as the cache key.
+    Do NOT read from st.session_state inside cached functions — session state
+    changes are invisible to the cache key and cause stale results across datasets.
     """
-    df = st.session_state.get("active_df", pd.DataFrame())
-    if st.session_state.get("filtered_df") is not None and not st.session_state["filtered_df"].empty:
-        df = st.session_state["filtered_df"]
     if df.empty or "sequence_hash" not in df.columns:
         return pd.DataFrame()
 
@@ -358,8 +355,7 @@ def _build_clusters(_df_hash: str, min_n: int) -> pd.DataFrame:
     return grp.reset_index()
 
 
-_df_hash = hashlib.md5(pd.util.hash_pandas_object(_display_df, index=True).values.tobytes()).hexdigest()[:12]
-_major_clusters = _build_clusters(_df_hash, min_cluster)
+_major_clusters = _build_clusters(_display_df, min_cluster)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PHASE 3 — Interactive Timeline Matrix
