@@ -1,0 +1,14 @@
+[server]
+# Maximum file upload size in MB.
+# Streamlit Cloud free tier has ~1 GB RAM; a 200 MB FASTA is ~133 k sequences
+# at 1 500 bp — approaching the safe memory ceiling.  App-level validation in
+# Workspace.py adds a softer 50 MB warning layer inside this hard cap.
+maxUploadSize = 200
+
+[browser]
+# Do not send usage statistics to Streamlit (privacy)
+gatherUsageStats = false
+
+[theme]
+# Neutral base — VirSift injects its own dark/light CSS at runtime
+base = "light"
