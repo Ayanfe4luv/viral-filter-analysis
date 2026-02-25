@@ -24,6 +24,7 @@ from utils.minimal_i18n import T, init_translations
 try:
     from PIL import Image as _PIL_Image
     _page_icon = _PIL_Image.open("assets/Viral_sift_logo.png")
+    _page_icon.load()  # Force full pixel read while file handle is open
 except Exception:
     _page_icon = "🧬"
 
@@ -86,7 +87,7 @@ def _init_session_state() -> None:
         # --- Data Mode ---
         # 'current'  → filtered_df if available, else active_df
         # 'original' → always active_df (raw snapshot from activation)
-        "data_mode": "current",
+        "data_mode": "original",
     }
     for key, default in defaults.items():
         if key not in st.session_state:
@@ -693,13 +694,13 @@ st.markdown(f"""
 .page-footer-strip {{
     position: fixed;
     bottom: 0;
-    right: 0;
+    left: 22rem;
     padding: .3rem .9rem;
-    font-size: .68rem;
-    color: #94a3b8;
+    font-size: .72rem;
+    font-weight: 700;
+    color: #64748b;
     z-index: 9990;
     pointer-events: none;
-    opacity: .75;
 }}
 </style>
 <div class="sidebar-brand-strip">{_brand_text}</div>
