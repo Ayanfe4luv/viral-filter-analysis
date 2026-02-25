@@ -10,7 +10,6 @@ Sections:
   • Use Case Library   — inline preview + download of usecase.md
 """
 
-import io
 import os
 
 import streamlit as st
@@ -26,8 +25,8 @@ _QUICKSTART = {
     "en": """\
 ### Step 1 — 📁 Upload Your Data
 Navigate to **Workspace** in the sidebar. Click *File Upload*, drag-and-drop
-your `.fasta`, `.fa`, `.fas`, `.fna`, `.txt`, or `.gz` file, then wait for the
-success banner. Your file is now in the session.
+your `.fasta`, `.fa`, `.fas`, `.fna`, `.txt`, `.text`, or `.gz` file, then wait
+for the success banner. Your file is now in the session.
 
 ### Step 2 — ✅ Activate the Dataset
 Scroll down to **Loaded Datasets**. Select your file in the multi-select box,
@@ -53,8 +52,8 @@ create one FASTA file per subtype / clade / host automatically.
     "ru": """\
 ### Шаг 1 — 📁 Загрузите данные
 Перейдите в **Рабочее пространство** на боковой панели. Нажмите *Загрузка
-файла*, перетащите `.fasta`, `.fa`, `.gz` или другой поддерживаемый файл,
-дождитесь зелёного баннера успеха.
+файла*, перетащите `.fasta`, `.fa`, `.gz`, `.text` или другой поддерживаемый
+файл, дождитесь зелёного баннера успеха.
 
 ### Шаг 2 — ✅ Активируйте набор данных
 Прокрутите до раздела **Загруженные наборы**. Выберите файл в списке,
@@ -117,7 +116,7 @@ _TIPS_FAQ = {
 ### ❓ Frequently Asked Questions
 
 **Q: My sequences show "Unknown" subtype after upload. Why?**
-> The header parser expects pipe-delimited fields: `name|type|subtype|segment|...`. If your headers use a different separator or order, use the *Header Converter* in Sequence Refinery to normalise them first.
+> The header parser expects pipe-delimited fields matching GISAID's export format. If your headers use a different separator or order, use the *Header Converter* in Sequence Refinery to normalise them first.
 
 **Q: Why is the Molecular Timeline matrix empty?**
 > The timeline requires a `sequence_hash` column (added during deduplication in Sequence Refinery) and at least one sequence present in two or more months. Run *Deduplicate* first.
@@ -151,7 +150,7 @@ _TIPS_FAQ = {
 ### ❓ Часто задаваемые вопросы
 
 **В: Субтипы показываются как "Unknown". Почему?**
-> Парсер ожидает поля через вертикальную черту: `name|type|subtype|segment|...`. Если заголовки другого формата — используйте *Конвертер заголовков* в Очистителе.
+> Парсер ожидает поля в формате GISAID с вертикальной чертой. Если заголовки другого формата — используйте *Конвертер заголовков* в Очистителе.
 
 **В: Матрица Молекулярной временной шкалы пустая.**
 > Требуется столбец `sequence_hash` (добавляется при дедупликации) и хотя бы одна последовательность, встречающаяся в двух и более месяцах. Сначала запустите дедупликацию.
@@ -167,28 +166,97 @@ _TIPS_FAQ = {
 """,
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Header format — three-virus reference (hRSV | Avian Flu | Human Flu)
+# ─────────────────────────────────────────────────────────────────────────────
 _HEADER_FORMAT = {
     "en": """\
-Vir-Seq-Sift parses FASTA headers using the **GISAID pipe-delimited** convention.
-The standard format has **6 core fields** separated by `|`:
+Vir-Seq-Sift supports **GISAID pipe-delimited** headers for three virus groups.
+Each group uses a different field count and ordering — choose the one that matches
+your GISAID download.
 
+---
+
+## 🫁 Human Respiratory Syncytial Virus (hRSV)
+
+**Header structure:**
 ```
->name|type_subtype|segment|date|accession|clade
+>Isolate_Name|GISAID_Accession|Collection_Date
 ```
 
-### Field Reference
+| # | Field | Example | Format |
+|---|-------|---------|--------|
+| 1 | **Isolate Name** | `hRSV/B/Argentina/BA-HNRG-206/2016` | hRSV/Subtype/Location/ID/Year |
+| 2 | **Accession** | `EPI_ISL_1074181` | EPI_ISL_XXXXXXX |
+| 3 | **Collection Date** | `2016-04-18` | YYYY-MM-DD, YYYY-MM, YYYY, or `unknown` |
+
+**Valid hRSV examples:**
+```fasta
+>hRSV/B/South_Korea/YSU-96B19/un|EPI_ISL_19159645|unknown
+>hRSV/A/Argentina/BA-HNRG-206/2016|EPI_ISL_1074181|2016-04-18
+>RSV/Human/GBR/2023-001|RSV_A|G|2023-11-04|EPI_ISL_17000001|ON1
+```
+
+**GISAID download settings for RSV:**
+- FASTA Header field: **Isolate name | Isolate ID | Collection date**
+- Date format: YYYY-MM-DD (2009-02-28)
+- ☑ Replace spaces with underscores in FASTA header
+- ☑ Remove spaces before and after values in FASTA header
+
+---
+
+## 🐦 Avian Influenza
+
+**Header structure:**
+```
+>Isolate_Name|Virus_Type/Subtype|Gene_Segment|Collection_Date|GISAID_Accession|Clade_Assignment
+```
+
+| # | Field | Example | Format |
+|---|-------|---------|--------|
+| 1 | **Isolate Name** | `A/duck/Bangladesh/33676/2017` | A/Host/Location/ID/Year |
+| 2 | **Type / Subtype** | `A_/_H4N6` | `A_/_HxNy` or `A/HxNy` |
+| 3 | **Segment** | `PA` | HA, NA, PA, PB1, PB2, NP, MP, NS |
+| 4 | **Date** | `2017-09-28` | YYYY-MM-DD, YYYY-MM, YYYY, or unknown |
+| 5 | **Accession** | `EPI_ISL_329573` | EPI_ISL_XXXXXXX |
+| 6 | **Clade** | `6B.1A.5a.2a.1` | Any format, empty, or `unassigned` |
+
+**Valid avian influenza examples:**
+```fasta
+>A/duck/Bangladesh/33676/2017|A_/_H4N6|PA|2017-09-28|EPI_ISL_329573|6B.1A.5a.2a.1
+>A/duck/Tottori/311018/2015|A_/_H3N6|PA|2015-10-01|EPI_ISL_237156|unassigned
+>A/mallard/Republic_of_Georgia/13/2011|A_/_H6N2|PA|2011-11-26|EPI_ISL_189700|
+>A/goose/China/1234/2020|A/H5N1|HA|2020-03|EPI_ISL_400001|2.3.4.4h
+>A/wild_bird/Japan/567/2019|A_/_H7N9|NA|2019|EPI_ISL_300123|unassigned
+```
+
+**GISAID download settings for Avian Influenza:**
+- Proteins: select segment (e.g., HA, PA, NP)
+- FASTA Header field: **Isolate name | Type | Collection date | Isolate ID | Lineage**
+- Date format: YYYY-MM-DD (2009-02-28)
+- ☑ Replace spaces with underscores in FASTA header
+- ☑ Remove spaces before and after values in FASTA header
+- *Note: Add segment name manually or download each segment separately.*
+
+---
+
+## 🦠 Human Influenza
+
+**Header structure:**
+```
+>Isolate_Name|Virus_Type/Subtype|Gene_Segment|Collection_Date|GISAID_Accession|Clade_Assignment
+```
 
 | # | Field | Examples | Notes |
 |---|-------|----------|-------|
 | 1 | **Strain name** | `A/Novosibirsk/RII-7.429/2024` · `B/Victoria/2/1987` | Full GISAID-style isolate name |
-| 2 | **Type / Subtype** | `A/_H3N2` · `A/_H1N1` · `B` | Flu A subtypes use `A/_Hx Nx`; Flu B has no subtype — write `B` |
+| 2 | **Type / Subtype** | `A/_H3N2` · `A/_H1N1` · `B` | Flu A uses `A/_HxNx`; Flu B has no subtype — write `B` |
 | 3 | **Segment** | `HA` · `NA` · `NP` · `MP` · `PA` | Any of the 8 influenza gene segments |
 | 4 | **Collection date** | `2024-01-17` · `2009-04-09` · `1987` | ISO 8601 preferred; year-only (`YYYY`) also accepted |
 | 5 | **Accession** | `EPI_ISL_19324838` · `EPI_ISL19324838` | With or without underscore between ISL and digits — both parsed |
 | 6 | **Clade** | `3C.2a1b.2a.2a.3a.1` · `V1A.3a.2` · `6B.1A` | Nextclade / GISAID phylogenetic label |
 
-### Valid Header Examples
-
+**Valid human influenza examples:**
 ```fasta
 >A/Novosibirsk/RII-7.429/2024|A/_H3N2|NP|2024-01-17|EPI_ISL19324838|3C.2a1b.2a.2a.3a.1
 >B/Novosibirsk/RII-7.893S/2025|B|MP|2025-04-09|EPI_ISL_20154061|V1A.3a.2
@@ -201,29 +269,23 @@ The standard format has **6 core fields** separated by `|`:
 
 | Observation | Detail |
 |-------------|--------|
-| **Multi-subtype surveillance** | H3N2 (NP, PA), H1N1 (HA), and Influenza B (MP, NA) coexist — use Subtype filter to isolate any one |
+| **Multi-subtype surveillance** | H3N2 (NP, PA), H1N1 (HA), and Flu B (MP, NA) coexist — use Subtype filter to isolate any one |
 | **Multi-segment dataset** | NP, MP, HA, NA, PA all present — use Segment filter before phylogenetic analysis |
-| **Year-only date** | `B/Victoria/2/1987` has just `1987` — parsed as Jan 1st 1987; will appear correctly in temporal charts |
+| **Year-only date** | `B/Victoria/2/1987` has just `1987` — parsed as Jan 1st 1987; appears correctly in temporal charts |
 | **Accession without underscore** | `EPI_ISL19324838` (no `_` between ISL and digits) — the parser normalises both formats |
-| **Flu B without subtype** | Second field is simply `B` — no `H`/`N` designation needed for influenza B |
+| **Flu B without subtype** | Second field is simply `B` — no H/N designation needed for influenza B |
 | **Multi-decade span** | 1987 → 2025 = 38-year dataset — ideal for Gantt Range chart in Analytics |
 
-### RSV Example
+**GISAID download settings for Human Influenza:**
+- FASTA Header field: **Isolate name | Type | Collection date | Isolate ID | Lineage**
+- Date format: YYYY-MM-DD (2009-02-28)
+- ☑ Replace spaces with underscores in FASTA header
+- ☑ Remove spaces before and after values in FASTA header
 
-```fasta
->RSV/Human/GBR/2023-001|RSV_A|G|2023-11-04|EPI_ISL_17000001|ON1
-```
+---
 
-RSV uses `RSV_A` or `RSV_B` in the type field. The segment field is the gene name (G, F, N, …).
+## ⚠️ Common Issues
 
-### Extended 9-Field Format
-Some workflows add `location` and `host` between segment and date:
-```
->name|type|subtype|segment|location|host|date|clade|accession
-```
-The parser auto-detects 6-field vs 9-field headers.
-
-### ⚠️ Common Issues
 - **Missing pipes**: If headers use spaces or commas, run the *Header Converter* in Sequence Refinery.
 - **Year-only dates in temporal charts**: Sequences with only `YYYY` dates will cluster at month 1 — expected behaviour.
 - **Blank segments**: Write `||` (empty field) rather than `N/A` — the parser treats "N/A" as a segment name.
@@ -232,14 +294,81 @@ The parser auto-detects 6-field vs 9-field headers.
 > 📄 For the complete format specification, see **1 FASTA Header Format Guide - Complete Reference.pdf** (included in the project download).
 """,
     "ru": """\
-VirSift разбирает FASTA-заголовки в **формате GISAID с вертикальной чертой**.
-Стандартный формат содержит **6 основных полей**, разделённых `|`:
+VirSift поддерживает **формат GISAID с вертикальной чертой** для трёх групп вирусов.
+Каждая группа имеет различное количество и порядок полей — выберите тот, который
+соответствует вашей выгрузке из GISAID.
 
+---
+
+## 🫁 РСВ человека (hRSV)
+
+**Структура заголовка:**
 ```
->name|type_subtype|segment|date|accession|clade
+>Isolate_Name|GISAID_Accession|Collection_Date
 ```
 
-### Справка по полям
+| № | Поле | Пример | Формат |
+|---|------|--------|--------|
+| 1 | **Название изолята** | `hRSV/B/Argentina/BA-HNRG-206/2016` | hRSV/Субтип/Место/ID/Год |
+| 2 | **Аккессия** | `EPI_ISL_1074181` | EPI_ISL_XXXXXXX |
+| 3 | **Дата сбора** | `2016-04-18` | ГГГГ-ММ-ДД, ГГГГ-ММ, ГГГГ или `unknown` |
+
+**Допустимые примеры hRSV:**
+```fasta
+>hRSV/B/South_Korea/YSU-96B19/un|EPI_ISL_19159645|unknown
+>hRSV/A/Argentina/BA-HNRG-206/2016|EPI_ISL_1074181|2016-04-18
+>RSV/Human/GBR/2023-001|RSV_A|G|2023-11-04|EPI_ISL_17000001|ON1
+```
+
+**Настройки загрузки GISAID для RSV:**
+- Поля заголовка FASTA: **Isolate name | Isolate ID | Collection date**
+- Формат даты: ГГГГ-ММ-ДД
+- ☑ Заменить пробелы на подчёркивания в заголовке FASTA
+- ☑ Удалить пробелы до и после значений
+
+---
+
+## 🐦 Птичий грипп
+
+**Структура заголовка:**
+```
+>Isolate_Name|Virus_Type/Subtype|Gene_Segment|Collection_Date|GISAID_Accession|Clade_Assignment
+```
+
+| № | Поле | Пример | Формат |
+|---|------|--------|--------|
+| 1 | **Название изолята** | `A/duck/Bangladesh/33676/2017` | A/Хозяин/Место/ID/Год |
+| 2 | **Тип / Субтип** | `A_/_H4N6` | `A_/_HxNy` или `A/HxNy` |
+| 3 | **Сегмент** | `PA` | HA, NA, PA, PB1, PB2, NP, MP, NS |
+| 4 | **Дата** | `2017-09-28` | ГГГГ-ММ-ДД, ГГГГ-ММ, ГГГГ или unknown |
+| 5 | **Аккессия** | `EPI_ISL_329573` | EPI_ISL_XXXXXXX |
+| 6 | **Клад** | `6B.1A.5a.2a.1` | Любой формат, пустое или `unassigned` |
+
+**Допустимые примеры птичьего гриппа:**
+```fasta
+>A/duck/Bangladesh/33676/2017|A_/_H4N6|PA|2017-09-28|EPI_ISL_329573|6B.1A.5a.2a.1
+>A/duck/Tottori/311018/2015|A_/_H3N6|PA|2015-10-01|EPI_ISL_237156|unassigned
+>A/mallard/Republic_of_Georgia/13/2011|A_/_H6N2|PA|2011-11-26|EPI_ISL_189700|
+>A/goose/China/1234/2020|A/H5N1|HA|2020-03|EPI_ISL_400001|2.3.4.4h
+>A/wild_bird/Japan/567/2019|A_/_H7N9|NA|2019|EPI_ISL_300123|unassigned
+```
+
+**Настройки загрузки GISAID для птичьего гриппа:**
+- Белки: выберите сегмент (например, HA, PA, NP)
+- Поля заголовка FASTA: **Isolate name | Type | Collection date | Isolate ID | Lineage**
+- Формат даты: ГГГГ-ММ-ДД
+- ☑ Заменить пробелы на подчёркивания
+- ☑ Удалить пробелы до и после значений
+- *Примечание: добавьте название сегмента вручную или скачивайте каждый сегмент отдельно.*
+
+---
+
+## 🦠 Человеческий грипп
+
+**Структура заголовка:**
+```
+>Isolate_Name|Virus_Type/Subtype|Gene_Segment|Collection_Date|GISAID_Accession|Clade_Assignment
+```
 
 | № | Поле | Примеры | Примечания |
 |---|------|---------|-----------|
@@ -250,8 +379,7 @@ VirSift разбирает FASTA-заголовки в **формате GISAID �
 | 5 | **Аккессия** | `EPI_ISL_19324838` · `EPI_ISL19324838` | С подчёркиванием и без — оба варианта поддерживаются |
 | 6 | **Клад** | `3C.2a1b.2a.2a.3a.1` · `V1A.3a.2` · `6B.1A` | Метка клада от Nextclade / GISAID |
 
-### Примеры допустимых заголовков
-
+**Допустимые примеры человеческого гриппа:**
 ```fasta
 >A/Novosibirsk/RII-7.429/2024|A/_H3N2|NP|2024-01-17|EPI_ISL19324838|3C.2a1b.2a.2a.3a.1
 >B/Novosibirsk/RII-7.893S/2025|B|MP|2025-04-09|EPI_ISL_20154061|V1A.3a.2
@@ -264,14 +392,23 @@ VirSift разбирает FASTA-заголовки в **формате GISAID �
 
 | Наблюдение | Подробности |
 |------------|-------------|
-| **Мультисубтипный надзор** | H3N2, H1N1 и грипп B сосуществуют — используйте фильтр Субтип для выделения нужного |
-| **Многосегментный датасет** | NP, MP, HA, NA, PA — используйте фильтр Сегмент перед филогенетическим анализом |
+| **Мультисубтипный надзор** | H3N2, H1N1 и грипп B сосуществуют — используйте фильтр Субтип |
+| **Многосегментный датасет** | NP, MP, HA, NA, PA — используйте фильтр Сегмент перед анализом |
 | **Дата только год** | `B/Victoria/2/1987` содержит лишь `1987` — разбирается как 1 января 1987 |
 | **Аккессия без подчёркивания** | `EPI_ISL19324838` — парсер нормализует оба варианта |
 | **Грипп B без субтипа** | Второе поле — просто `B`, без обозначения H/N |
 | **Многодесятилетний охват** | 1987–2025 = 38 лет — идеально для диаграммы Ганта в Аналитике |
 
-### ⚠️ Типичные проблемы
+**Настройки загрузки GISAID для человеческого гриппа:**
+- Поля заголовка FASTA: **Isolate name | Type | Collection date | Isolate ID | Lineage**
+- Формат даты: ГГГГ-ММ-ДД
+- ☑ Заменить пробелы на подчёркивания
+- ☑ Удалить пробелы до и после значений
+
+---
+
+## ⚠️ Типичные проблемы
+
 - **Отсутствующие вертикальные черты**: Используйте *Конвертер заголовков* в Очистителе.
 - **Только год в дате**: Последовательности с `ГГГГ` будут кластеризованы в месяце 1 — ожидаемое поведение.
 - **Пустые сегменты**: Пишите `||`, а не "N/A" — парсер воспримет "N/A" как название сегмента.
@@ -341,6 +478,51 @@ with tab_hdr:
                 mime="application/pdf",
                 use_container_width=False,
             )
+
+    # ── Test datasets section ────────────────────────────────────────────────
+    st.divider()
+    st.markdown(f"### 🧪 {T('docs_test_data_header')}")
+    st.warning(T("docs_test_data_disclaimer"))
+
+    _cases_dir = "cases"
+    _test_files = [
+        (
+            "RSV-B_for_filtration.fasta",
+            "docs_dl_rsv_fasta",
+            "RSV-B — 3-field GISAID format: `>Isolate_Name|EPI_ISL|Date`",
+            "RSV-B_for_filtration.fasta",
+        ),
+        (
+            "All H3N2_20250918_070704.fasta",
+            "docs_dl_h3n2_fasta",
+            "H3N2 — 6-field GISAID format: `>Name|Type|Segment|Date|Accession|Clade`",
+            "All_H3N2_test.fasta",
+        ),
+        (
+            "HA_test_copy1.fasta",
+            "docs_dl_ha_fasta",
+            "HA segment — mixed Influenza A subtypes, multi-clade",
+            "HA_test_copy1.fasta",
+        ),
+    ]
+
+    _dl_cols = st.columns(3)
+    for _col, (_fname, _key, _desc, _dl_name) in zip(_dl_cols, _test_files):
+        _fpath = os.path.join(_cases_dir, _fname)
+        with _col:
+            st.caption(_desc)
+            if os.path.exists(_fpath):
+                with open(_fpath, "rb") as _ff:
+                    st.download_button(
+                        label=T(_key),
+                        data=_ff.read(),
+                        file_name=_dl_name,
+                        mime="text/plain",
+                        use_container_width=True,
+                        key=f"dl_test_{_fname[:8]}",
+                    )
+            else:
+                st.caption(f"_(file not found: `{_fname}`)_")
 
 # ── Tab 5: Use Case Library ───────────────────────────────────────────────────
 with tab_uc:

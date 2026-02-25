@@ -10,10 +10,26 @@ Welcome design adapted from fasta_analysis_app_final.py welcome section,
 expanded into a full landing page with workflow pipeline and feature badges.
 """
 
+import base64
+import os
+
 import pandas as pd
 import streamlit as st
 
 from utils.minimal_i18n import T
+
+# Pre-load logo as base64 for inline HTML embedding
+try:
+    _logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                              "assets", "Viral_sift_logo.png")
+    with open(_logo_path, "rb") as _lf:
+        _LOGO_B64 = base64.b64encode(_lf.read()).decode()
+    _LOGO_HTML = (
+        f'<img src="data:image/png;base64,{_LOGO_B64}" '
+        f'style="height:3.2rem;width:auto;object-fit:contain;">'
+    )
+except Exception:
+    _LOGO_HTML = '<span style="font-size:3rem;line-height:1;">🧬</span>'
 
 try:
     import plotly.graph_objects as go
@@ -45,7 +61,7 @@ if _active_df.empty:
         box-shadow: 0 8px 32px rgba(3,105,161,0.35);
     ">
         <div style="display:flex; align-items:center; gap:1rem; margin-bottom:.75rem;">
-            <span style="font-size:3rem; line-height:1;">🧬</span>
+            <div style="flex-shrink:0;">{_LOGO_HTML}</div>
             <div>
                 <h1 style="color:#f0f9ff; margin:0; font-size:1.9rem; font-weight:700;
                             letter-spacing:-.5px;">
@@ -200,25 +216,28 @@ if _active_df.empty:
             </ul>
             <div style="margin-top:.75rem; border-top:1px solid #e2e8f0;
                         padding-top:.7rem;">
-                <div style="font-size:.75rem; color:#1e40af; font-weight:600;
-                            margin-bottom:.3rem;">
-                    {T('welcome_header_format_label')}
+                <div style="font-size:.75rem; color:#1e40af; font-weight:700;
+                            margin-bottom:.45rem;">
+                    {T('welcome_header_formats_title')}
                 </div>
-                <code style="font-size:.7rem; background:#eff6ff; color:#0369a1;
-                             padding:.3rem .55rem; border-radius:4px; display:block;
-                             word-break:break-all; line-height:1.6;">
-                    &gt;name|type|segment|date|accession|clade
+                <div style="font-size:.72rem; color:#0891b2; font-weight:600;
+                            margin-bottom:.1rem;">🫁 {T('welcome_hrsv_format_label')}</div>
+                <code style="font-size:.67rem; background:#eff6ff; color:#0369a1;
+                             padding:.2rem .45rem; border-radius:4px; display:block;
+                             word-break:break-all; line-height:1.5;
+                             border-left:3px solid #0891b2; margin-bottom:.35rem;">
+                    &gt;Isolate_Name|GISAID_Accession|Collection_Date
                 </code>
-                <div style="font-size:.7rem; color:#94a3b8; margin-top:.4rem;
-                            font-style:italic;">{T('welcome_header_format_eg')}</div>
-                <code style="font-size:.67rem; background:#f1f5f9; color:#475569;
-                             padding:.25rem .5rem; border-radius:4px; display:block;
-                             word-break:break-all; line-height:1.6; margin-top:.2rem;">
-                    &gt;A/Novosibirsk/RII-7.429/2024|A/_H3N2|NP|2024-01-17|EPI_ISL19324838|3C.2a1b.2a.2a.3a.1<br>
-                    &gt;B/Victoria/2/1987|B|NA|1987|EPI_ISL_100123|V1A.3a.2<br>
-                    &gt;A/California/07/2009|A/_H1N1|HA|2009-04-09|EPI_ISL_29553|6B.1A
+                <div style="font-size:.72rem; color:#059669; font-weight:600;
+                            margin-bottom:.1rem;">🐦 {T('welcome_flu_format_label')}</div>
+                <code style="font-size:.63rem; background:#ecfdf5; color:#065f46;
+                             padding:.2rem .45rem; border-radius:4px; display:block;
+                             word-break:break-all; line-height:1.5;
+                             border-left:3px solid #059669;">
+                    &gt;Isolate_Name|Virus_Type/Subtype|Gene_Segment|Collection_Date|GISAID_Accession|Clade
                 </code>
-                <div style="font-size:.7rem; color:#64748b; margin-top:.35rem;">
+                <div style="font-size:.68rem; color:#94a3b8; margin-top:.35rem;
+                            font-style:italic;">
                     {T('welcome_header_format_hint')}
                 </div>
             </div>
@@ -279,6 +298,12 @@ if _active_df.empty:
 
 {T('welcome_tips_full_guide')}
         """)
+        try:
+            st.page_link("pages/07_📚_Documentation.py",
+                         label=f"📚 {T('nav_documentation')} →",
+                         use_container_width=False)
+        except Exception:
+            pass
 
     # Guide expander (adapted from original docs_header)
     with st.expander(f"📖 {T('welcome_guide_title')}", expanded=False):

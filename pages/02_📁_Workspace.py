@@ -35,7 +35,7 @@ st.caption(T("upload_instruction"))
 
 uploaded_files = st.file_uploader(
     label=T("upload_instruction"),
-    type=["fasta", "fa", "fas", "gz", "zip"],
+    type=["fasta", "fa", "fas", "txt", "text", "gz", "zip"],
     accept_multiple_files=True,
     key="file_uploader",
     label_visibility="collapsed",
