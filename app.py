@@ -100,6 +100,7 @@ _PAGES = [
     st.Page("pages/04_🧬_Molecular_Timeline.py", title=T("nav_timeline"),     icon="🧬"),
     st.Page("pages/05_📊_Analytics.py",          title=T("nav_analytics"),    icon="📊"),
     st.Page("pages/06_📋_Export.py",             title=T("nav_export"),       icon="📋"),
+    st.Page("pages/07_📚_Documentation.py",      title=T("nav_documentation"), icon="📚"),
 ]
 
 pg = st.navigation(_PAGES)
@@ -580,6 +581,7 @@ def _render_sidebar() -> None:
         st.page_link("pages/04_🧬_Molecular_Timeline.py", label=f"🧬 {T('nav_timeline')}")
         st.page_link("pages/05_📊_Analytics.py",          label=f"📊 {T('nav_analytics')}")
         st.page_link("pages/06_📋_Export.py",             label=f"📋 {T('nav_export')}")
+        st.page_link("pages/07_📚_Documentation.py",      label=f"📚 {T('nav_documentation')}")
 
         st.divider()
 
@@ -644,9 +646,7 @@ def _render_sidebar() -> None:
                 del st.session_state[_key]
             st.rerun()
 
-        st.divider()
-        st.caption(f"{T('app_title')} {T('app_version')}")
-        st.caption("Zero-Lag Architecture")
+        pass  # brand is rendered as a fixed-bottom CSS strip (see below)
 
 
 # ---------------------------------------------------------------------------
@@ -661,6 +661,44 @@ else:
 st.markdown(_DARK_CSS if _active_theme == "dark" else _LIGHT_CSS, unsafe_allow_html=True)
 
 _render_sidebar()
+
+# ---------------------------------------------------------------------------
+# Step 4c: Fixed-bottom sidebar brand strip + page footer
+# ---------------------------------------------------------------------------
+_brand_text = f"{T('app_title')} {T('app_version')} · {T('app_arch')}"
+_footer_text = f"{T('app_title')} {T('app_version')} — {T('app_tagline')}"
+st.markdown(f"""
+<style>
+/* ── Fixed-bottom sidebar brand ─────────────────────────────────────── */
+.sidebar-brand-strip {{
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 21rem;
+    padding: .45rem 1rem .5rem;
+    font-size: .7rem;
+    color: #94a3b8;
+    z-index: 9999;
+    pointer-events: none;
+    background: var(--secondary-background-color, rgba(240,242,246,0.95));
+    border-top: 1px solid rgba(148,163,184,.15);
+}}
+/* ── Page footer ─────────────────────────────────────────────────────── */
+.page-footer-strip {{
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    padding: .3rem .9rem;
+    font-size: .68rem;
+    color: #94a3b8;
+    z-index: 9990;
+    pointer-events: none;
+    opacity: .75;
+}}
+</style>
+<div class="sidebar-brand-strip">{_brand_text}</div>
+<div class="page-footer-strip">{_footer_text}</div>
+""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
 # Step 5: Run the current page
