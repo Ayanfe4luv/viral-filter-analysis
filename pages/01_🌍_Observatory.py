@@ -26,7 +26,7 @@ try:
         _LOGO_B64 = base64.b64encode(_lf.read()).decode()
     _LOGO_HTML = (
         f'<img src="data:image/png;base64,{_LOGO_B64}" '
-        f'style="height:3.2rem;width:auto;object-fit:contain;">'
+        f'style="height:6.4rem;width:auto;object-fit:contain;">'
     )
 except Exception:
     _LOGO_HTML = '<span style="font-size:3rem;line-height:1;">🧬</span>'
@@ -208,41 +208,48 @@ if _active_df.empty:
             </div>
             <ul style="margin:0; padding-left:1.2rem; color:#475569;
                        font-size:.87rem; line-height:1.7;">
-                <li>{T('welcome_info_1')}</li>
                 <li>{T('welcome_info_2')}</li>
                 <li>{T('welcome_info_3')}</li>
                 <li>{T('welcome_info_4')}</li>
                 <li>{T('welcome_info_5')}</li>
             </ul>
-            <div style="margin-top:.75rem; border-top:1px solid #e2e8f0;
-                        padding-top:.7rem;">
-                <div style="font-size:.75rem; color:#1e40af; font-weight:700;
-                            margin-bottom:.45rem;">
-                    {T('welcome_header_formats_title')}
-                </div>
-                <div style="font-size:.72rem; color:#0891b2; font-weight:600;
-                            margin-bottom:.1rem;">🫁 {T('welcome_hrsv_format_label')}</div>
-                <code style="font-size:.67rem; background:#eff6ff; color:#0369a1;
-                             padding:.2rem .45rem; border-radius:4px; display:block;
-                             word-break:break-all; line-height:1.5;
-                             border-left:3px solid #0891b2; margin-bottom:.35rem;">
-                    &gt;Isolate_Name|GISAID_Accession|Collection_Date
-                </code>
-                <div style="font-size:.72rem; color:#059669; font-weight:600;
-                            margin-bottom:.1rem;">🐦 {T('welcome_flu_format_label')}</div>
-                <code style="font-size:.63rem; background:#ecfdf5; color:#065f46;
-                             padding:.2rem .45rem; border-radius:4px; display:block;
-                             word-break:break-all; line-height:1.5;
-                             border-left:3px solid #059669;">
-                    &gt;Isolate_Name|Virus_Type/Subtype|Gene_Segment|Collection_Date|GISAID_Accession|Clade
-                </code>
-                <div style="font-size:.68rem; color:#94a3b8; margin-top:.35rem;
-                            font-style:italic;">
-                    {T('welcome_header_format_hint')}
-                </div>
-            </div>
         </div>
         """, unsafe_allow_html=True)
+
+    # ── Supported GISAID header formats — full-width centred block ────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="text-align:center; margin-bottom:.9rem;">
+        <span style="font-size:.82rem; color:#1e40af; font-weight:700;
+                     letter-spacing:.3px; text-transform:uppercase;">
+            {T('welcome_header_formats_title')}
+        </span>
+    </div>
+    <div style="display:flex; gap:1.2rem; justify-content:center; flex-wrap:wrap;">
+        <div style="flex:1; min-width:260px; max-width:420px;
+                    background:#eff6ff; border-left:4px solid #0891b2;
+                    border-radius:8px; padding:1rem 1.2rem;">
+            <div style="font-size:.78rem; color:#0891b2; font-weight:700;
+                        margin-bottom:.5rem;">🫁 {T('welcome_hrsv_format_label')}</div>
+            <code style="font-size:.72rem; color:#0369a1; background:rgba(255,255,255,.6);
+                         padding:.3rem .5rem; border-radius:4px; display:block;
+                         word-break:break-all; line-height:1.6;">
+                &gt;Isolate_Name|GISAID_Accession|Collection_Date
+            </code>
+        </div>
+        <div style="flex:1; min-width:260px; max-width:420px;
+                    background:#ecfdf5; border-left:4px solid #059669;
+                    border-radius:8px; padding:1rem 1.2rem;">
+            <div style="font-size:.78rem; color:#059669; font-weight:700;
+                        margin-bottom:.5rem;">🐦 {T('welcome_flu_format_label')}</div>
+            <code style="font-size:.67rem; color:#065f46; background:rgba(255,255,255,.6);
+                         padding:.3rem .5rem; border-radius:4px; display:block;
+                         word-break:break-all; line-height:1.6;">
+                &gt;Isolate_Name|Virus_Type/Subtype|Gene_Segment|Collection_Date|GISAID_Accession|Clade
+            </code>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # ── Supported Viruses & RSV Info ──────────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)

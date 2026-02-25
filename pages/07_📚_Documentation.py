@@ -25,7 +25,7 @@ _QUICKSTART = {
     "en": """\
 ### Step 1 — 📁 Upload Your Data
 Navigate to **Workspace** in the sidebar. Click *File Upload*, drag-and-drop
-your `.fasta`, `.fa`, `.fas`, `.fna`, `.txt`, `.text`, or `.gz` file, then wait
+your `.fasta`, `.fa`, `.fas`, `.fna`, `.txt`, or `.gz` file, then wait
 for the success banner. Your file is now in the session.
 
 ### Step 2 — ✅ Activate the Dataset
@@ -52,7 +52,7 @@ create one FASTA file per subtype / clade / host automatically.
     "ru": """\
 ### Шаг 1 — 📁 Загрузите данные
 Перейдите в **Рабочее пространство** на боковой панели. Нажмите *Загрузка
-файла*, перетащите `.fasta`, `.fa`, `.gz`, `.text` или другой поддерживаемый
+файла*, перетащите `.fasta`, `.fa`, `.gz`, `.txt` или другой поддерживаемый
 файл, дождитесь зелёного баннера успеха.
 
 ### Шаг 2 — ✅ Активируйте набор данных
@@ -529,7 +529,7 @@ with tab_uc:
     st.markdown(f"### {T('docs_usecase_header')}")
     st.caption(T("docs_usecase_caption"))
 
-    _uc_path = "usecase.md"
+    _uc_path = os.path.join("cases", "usecase.md")
     if os.path.exists(_uc_path):
         with open(_uc_path, encoding="utf-8") as _uc_f:
             _uc_content = _uc_f.read()
