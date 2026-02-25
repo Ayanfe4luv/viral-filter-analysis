@@ -21,3 +21,6 @@ pyarrow>=16.0.0
 
 # URL-based FASTA downloads
 requests>=2.31.0
+
+# Logo image rendering (browser tab icon — graceful fallback to emoji if absent)
+Pillow>=9.0.0
