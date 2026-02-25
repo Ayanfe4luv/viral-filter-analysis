@@ -105,24 +105,40 @@ def parse_gisaid_fasta(file_content: str, file_name: str) -> tuple:
 def decompress_if_needed(raw_bytes: bytes, file_name: str) -> str:
     """Decompress .gz or .zip files and return a UTF-8 decoded string.
 
-    For .zip archives, extracts the first file with a FASTA extension.
+    For .zip archives, concatenates ALL FASTA-like files found in the archive.
+    This handles multi-segment or multi-file ZIPs (e.g. one file per segment,
+    one file per year, or any sub-alignment bundles) — all sequences are merged
+    into a single FASTA string in sorted filename order.
+
     Falls back to plain UTF-8 decode for uncompressed files.
     """
+    import os as _os
     name_lower = file_name.lower()
     try:
         if name_lower.endswith(".gz"):
-            return gzip.decompress(raw_bytes).decode("utf-8")
+            return gzip.decompress(raw_bytes).decode("utf-8", errors="replace")
         if name_lower.endswith(".zip"):
             with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
-                fasta_exts = (".fasta", ".fa", ".fas", ".txt")
-                for member in zf.namelist():
-                    if member.lower().endswith(fasta_exts):
+                fasta_exts = (".fasta", ".fa", ".fas", ".fna", ".txt")
+                # Filter: keep only FASTA-like members; skip macOS metadata and dotfiles
+                fasta_members = sorted([
+                    m for m in zf.namelist()
+                    if m.lower().endswith(fasta_exts)
+                    and not m.startswith("__MACOSX")
+                    and not _os.path.basename(m).startswith(".")
+                ])
+                if fasta_members:
+                    parts: list[str] = []
+                    for member in fasta_members:
                         with zf.open(member) as f:
-                            return f.read().decode("utf-8")
-                # Fallback: first file in archive
+                            parts.append(f.read().decode("utf-8", errors="replace"))
+                    # Join with a blank line so FASTA records from separate files
+                    # don't accidentally merge into each other.
+                    return "\n".join(parts)
+                # Fallback: return first file in archive regardless of extension
                 if zf.namelist():
                     with zf.open(zf.namelist()[0]) as f:
-                        return f.read().decode("utf-8")
+                        return f.read().decode("utf-8", errors="replace")
     except Exception:
         pass
     return raw_bytes.decode("utf-8", errors="replace")
