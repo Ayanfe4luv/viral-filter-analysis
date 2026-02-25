@@ -571,5 +571,9 @@
   "docs_test_data_disclaimer": "⚠️ These files are provided for testing purposes only. They may not accurately represent the full GISAID database and should not be used for epidemiological conclusions.",
   "docs_dl_rsv_fasta": "⬇ RSV-B Filtration Dataset",
   "docs_dl_h3n2_fasta": "⬇ H3N2 Full Dataset",
-  "docs_dl_ha_fasta": "⬇ HA Segment Test Data"
+  "docs_dl_ha_fasta": "⬇ HA Segment Test Data",
+  "upload_file_large_warn": "⚠️ Large file ({mb} MB) — processing may be slow. Consider splitting files above 50 MB for best performance.",
+  "upload_file_too_large": "❌ File too large: {mb} MB exceeds the {max_mb} MB limit. Split the file or use the URL downloader.",
+  "upload_url_too_large": "❌ Remote file too large: {mb} MB exceeds the {max_mb} MB limit. Download and split the file first.",
+  "upload_url_large_warn": "⚠️ Large remote file ({mb} MB) — download will proceed but may be slow on Streamlit Cloud."
 }
