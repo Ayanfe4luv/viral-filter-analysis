@@ -55,12 +55,14 @@ def _file_md5(path: str) -> str:
 
 
 @st.cache_data(show_spinner=False)
-def _load_all_cached(_en_hash: str, _ru_hash: str) -> dict:
+def _load_all_cached(en_hash: str, ru_hash: str) -> dict:
     """Cache-data wrapper — re-invoked only when a JSON file changes on disk.
 
-    _en_hash and _ru_hash are intentional @st.cache_data discriminators.
-    Leading underscores mark them as unused-in-body (cache-key only).
+    en_hash / ru_hash are @st.cache_data cache-key discriminators.
+    Do NOT use underscore prefix — Streamlit excludes underscore-prefixed
+    params from the cache key, causing permanently stale translations.
     """
+    del en_hash, ru_hash  # cache-key only; body reads files directly
     return {
         "en": _load_json(_EN_PATH),
         "ru": _load_json(_RU_PATH),
@@ -77,7 +79,7 @@ def init_translations() -> None:
     try:
         en_hash = _file_md5(_EN_PATH)
         ru_hash = _file_md5(_RU_PATH)
-        st.session_state["translations"] = _load_all_cached(_en_hash=en_hash, _ru_hash=ru_hash)
+        st.session_state["translations"] = _load_all_cached(en_hash, ru_hash)
     except Exception:
         st.session_state["translations"] = _MODULE_TRANS
 
