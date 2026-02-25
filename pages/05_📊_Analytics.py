@@ -131,6 +131,52 @@ _SCHEMES = {
     },
 }
 
+# ── Scheme display-name translations (kept inline to avoid 40+ JSON keys) ────
+_lang = st.session_state.get("lang", st.session_state.get("language", "en"))
+_SCHEME_RU_NAMES: dict[str, str] = {
+    # bar
+    "Nature Journal": "Научный журнал",    "Spike Surge": "Волна шипа",
+    "Epi Alert": "Эпи-тревога",            "Genomic Helix": "Геномная спираль",
+    # pie
+    "Viral Mosaic": "Вирусная мозаика",    "Journal Crisp": "Чёткий журнал",
+    "Nebula Burst": "Взрыв туманности",    "Outbreak Slices": "Срезы вспышки",
+    # line
+    "Journal Timeline": "Хронология журнала", "Pandemic Wave": "Пандемическая волна",
+    "Bio Rhythm": "Биоритм",               "Evo Path": "Эво-путь",
+    # heatmap
+    "Global Outbreak": "Глобальная вспышка", "Eco Layers": "Эко-слои",
+    "Helix Intensity": "Интенсивность спирали", "Genomic Density": "Геномная плотность",
+    # stacked
+    "Host Stacks": "Стеки хозяев",         "Pub Stack": "Публ.-стек",
+    "Layered Genomes": "Слоистые геномы",  "Outbreak Build": "Рост вспышки",
+    # sunburst
+    "Viral Hierarchy": "Вирусная иерархия", "Clade Cascade": "Каскад клад",
+    "Nature Lineage": "Природная линия",
+    # treemap
+    "Outbreak Area": "Ареал вспышки",      "Eco Terrain": "Эко-ландшафт",
+    "Lineage Blocks": "Блоки линий",       "Density Map": "Карта плотности",
+    # violin
+    "Length Spread": "Разброс длины",      "Genomic Range": "Геномный диапазон",
+    "Seg Palette": "Палитра сегментов",    "Muted Tones": "Приглушённые тона",
+    # bubble
+    "Spatio-Temporal": "Пространственно-временной", "Geo Scatter": "Георассеяние",
+    "Heat Dots": "Тепловые точки",         "Cool Bubbles": "Холодные пузыри",
+    # parallel
+    "Pathway Flow": "Поток путей",         "Thermal Paths": "Тепловые пути",
+    "Spectral Flow": "Спектральный поток", "Cool Stream": "Холодный поток",
+    # gantt
+    "Timeline Bands": "Временные полосы",  "Journal Spans": "Охваты журнала",
+    "Muted Spans": "Приглушённые охваты",  "Viral Epochs": "Вирусные эпохи",
+}
+
+
+def _scheme_disp(name: str) -> str:
+    """Return localised display name for a colour scheme internal key."""
+    if _lang == "ru":
+        return _SCHEME_RU_NAMES.get(name, name)
+    return name
+
+
 _FIELD_MAP = {
     T("analytics_field_subtype"):  "subtype_clean",
     T("analytics_field_host"):     "host",
@@ -811,8 +857,11 @@ with ctrl_col:
         _skey = chart_sub if "chart_sub" in dir() else "bar"
 
     palette_names = list(_SCHEMES.get(_skey, _SCHEMES["bar"]).keys())
-    scheme_name = st.selectbox(T("analytics_color_scheme"), options=palette_names,
-                                key=f"an_scheme_{_skey}")
+    _palette_display = [_scheme_disp(n) for n in palette_names]
+    _display_to_internal = {_scheme_disp(n): n for n in palette_names}
+    _scheme_name_disp = st.selectbox(T("analytics_color_scheme"), options=_palette_display,
+                                      key=f"an_scheme_{_skey}")
+    scheme_name = _display_to_internal.get(_scheme_name_disp, palette_names[0])
     active_scheme = (
         st.session_state.get("custom_palette") or
         _SCHEMES.get(_skey, _SCHEMES["bar"])[scheme_name]

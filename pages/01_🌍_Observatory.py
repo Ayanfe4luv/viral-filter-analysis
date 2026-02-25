@@ -112,7 +112,7 @@ if _active_df.empty:
         </div>
         """, unsafe_allow_html=True)
         try:
-            col.page_link(page_path, label=T("nav_go_to", title=title),
+            col.page_link(page_path, label=f"→ {title}",
                           use_container_width=True)
         except AttributeError:
             pass  # st.page_link available in Streamlit ≥ 1.29
@@ -177,7 +177,7 @@ if _active_df.empty:
         """, unsafe_allow_html=True)
         try:
             st.page_link("pages/02_📁_Workspace.py",
-                         label="📁 Load Your Dataset →",
+                         label=f"📁 {T('nav_workspace')} →",
                          use_container_width=True)
         except AttributeError:
             pass
@@ -196,7 +196,32 @@ if _active_df.empty:
                 <li>{T('welcome_info_2')}</li>
                 <li>{T('welcome_info_3')}</li>
                 <li>{T('welcome_info_4')}</li>
+                <li>{T('welcome_info_5')}</li>
             </ul>
+            <div style="margin-top:.75rem; border-top:1px solid #e2e8f0;
+                        padding-top:.7rem;">
+                <div style="font-size:.75rem; color:#1e40af; font-weight:600;
+                            margin-bottom:.3rem;">
+                    {T('welcome_header_format_label')}
+                </div>
+                <code style="font-size:.7rem; background:#eff6ff; color:#0369a1;
+                             padding:.3rem .55rem; border-radius:4px; display:block;
+                             word-break:break-all; line-height:1.6;">
+                    &gt;name|type|segment|date|accession|clade
+                </code>
+                <div style="font-size:.7rem; color:#94a3b8; margin-top:.4rem;
+                            font-style:italic;">{T('welcome_header_format_eg')}</div>
+                <code style="font-size:.67rem; background:#f1f5f9; color:#475569;
+                             padding:.25rem .5rem; border-radius:4px; display:block;
+                             word-break:break-all; line-height:1.6; margin-top:.2rem;">
+                    &gt;A/Novosibirsk/RII-7.429/2024|A/_H3N2|NP|2024-01-17|EPI_ISL19324838|3C.2a1b.2a.2a.3a.1<br>
+                    &gt;B/Victoria/2/1987|B|NA|1987|EPI_ISL_100123|V1A.3a.2<br>
+                    &gt;A/California/07/2009|A/_H1N1|HA|2009-04-09|EPI_ISL_29553|6B.1A
+                </code>
+                <div style="font-size:.7rem; color:#64748b; margin-top:.35rem;">
+                    {T('welcome_header_format_hint')}
+                </div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -226,21 +251,33 @@ if _active_df.empty:
 
     # ── Quick Use Case Cues ────────────────────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
-    with st.expander("💡 Quick Use Case Examples — Beginner Tips", expanded=False):
+    with st.expander(f"💡 {T('welcome_tips_header')}", expanded=False):
         st.markdown(f"""
-**Influenza H3N2 — quality filtering:**
-> {T('use_case_tip_filter')}
+**{T('use_case_label_h3n2_filter')}**
+> {T('use_case_tip_h3n2_filter')}
 
-**RSV — genome length check:**
-> {T('use_case_tip_filter')}
+**{T('use_case_label_rsv_length')}**
+> {T('use_case_tip_rsv_length')}
 
-**RSV — overwintering tracking:**
+**{T('use_case_label_rsv_overwinter')}**
 > {T('use_case_tip_timeline')}
 
-**RSV A vs B comparison:**
+**{T('use_case_label_rsv_ab')}**
 > {T('use_case_tip_analytics')}
 
-See the full **usecase.md** (included in your download) for 55 step-by-step beginner examples.
+**{T('use_case_label_flu_clades')}**
+> {T('use_case_tip_flu_clades')}
+
+**{T('use_case_label_temporal')}**
+> {T('use_case_tip_temporal')}
+
+**{T('use_case_label_segment')}**
+> {T('use_case_tip_segment')}
+
+**{T('use_case_label_h5n1_host')}**
+> {T('use_case_tip_h5n1_host')}
+
+{T('welcome_tips_full_guide')}
         """)
 
     # Guide expander (adapted from original docs_header)
@@ -265,6 +302,35 @@ else:
 
 if len(_display_df) > 10_000:
     st.warning(T("sidebar_large_dataset_warning"))
+
+# ── Platform overview — accessible from dashboard mode ───────────────────────
+with st.expander(f"ℹ️ {T('obs_platform_overview')}", expanded=False):
+    _ov1, _ov2, _ov3 = st.columns(3)
+    with _ov1:
+        st.markdown(f"""**{T('obs_overview_workflow')}**
+1. 📁 **{T('nav_workspace')}** — {T('obs_overview_step1')}
+2. 🔬 **{T('nav_refinery')}** — {T('obs_overview_step2')}
+3. 🧬 **{T('nav_timeline')}** — {T('obs_overview_step3')}
+4. 📊 **{T('nav_analytics')}** — {T('obs_overview_step4')}
+5. 📋 **{T('nav_export')}** — {T('obs_overview_step5')}""")
+    with _ov2:
+        st.markdown(f"""**{T('obs_overview_tips_header')}**
+- ✅ {T('obs_tip_activation')}
+- 💾 {T('obs_tip_session')}
+- ⚡ {T('obs_tip_cache')}
+- 📦 {T('obs_tip_export_before_close')}""")
+    with _ov3:
+        st.markdown(f"""**{T('obs_overview_viruses')}**
+🐦 Influenza A/B (H3N2, H1N1, H5N1)
+🫁 RSV A & B
+🦠 SARS-CoV-2
+🧬 {T('obs_any_gisaid_header')}""")
+    try:
+        st.page_link("pages/07_📚_Documentation.py",
+                     label=f"📚 {T('nav_documentation')} →",
+                     use_container_width=False)
+    except Exception:
+        pass
 
 # ── Per-page sidebar — section visibility toggles ────────────────────────────
 with st.sidebar:
@@ -503,6 +569,13 @@ if action_logs:
     }
     with st.expander(T("obs_action_log_header")):
         _log_df = pd.DataFrame(action_logs).rename(columns=_col_rename)
+        _act_col = T("log_col_action")
+        if _act_col in _log_df.columns:
+            _log_df[_act_col] = _log_df[_act_col].replace({
+                "parse": T("log_action_parse"),
+                "activate": T("log_action_activate"),
+            })
+        _log_df = _log_df.fillna("-")
         st.dataframe(_log_df, use_container_width=True, hide_index=True)
 
 # ── Inter-page navigation ─────────────────────────────────────────────────────

@@ -870,18 +870,8 @@ with st.sidebar:
         st.metric(T("timeline_total_sequences"), f"{len(_display_df):,}")
     st.caption(T("timeline_sidebar_tip"))
 
-    # ── Chart colour scheme ────────────────────────────────────────────────
+    # ── Chart colour scheme — live swatch (control is inline above cluster chart) ──
     st.markdown(f"**{T('timeline_chart_colour')}**")
-    _sb_scheme_opts = list(_TIMELINE_PALETTES.keys())
-    st.selectbox(
-        T("timeline_chart_colour"),
-        options=_sb_scheme_opts,
-        index=_sb_scheme_opts.index(_tl_scheme_name) if _tl_scheme_name in _sb_scheme_opts else 0,
-        key="timeline_chart_scheme",
-        label_visibility="collapsed",
-        help=T("timeline_chart_colour_help"),
-    )
-    # Live colour swatch
     _sb_accent = _TIMELINE_PALETTES.get(
         st.session_state.get("timeline_chart_scheme", "🔵 Ocean Blue"),
         _TIMELINE_PALETTES["🔵 Ocean Blue"],
@@ -891,6 +881,7 @@ with st.sidebar:
         f"background:linear-gradient(90deg,{_sb_accent}55,{_sb_accent})'></div>",
         unsafe_allow_html=True,
     )
+    st.caption(T("timeline_chart_colour_help"))
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Inter-page navigation

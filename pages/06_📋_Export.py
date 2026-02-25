@@ -297,10 +297,10 @@ with st.expander(f"🔑 {T('export_accession_header')}"):
         )
         acc_text = "\n".join(sorted(acc_series))
         st.code(
-            acc_text[:800] + (f"\n… (+{len(acc_series)-20} more)" if len(acc_series) > 20 else ""),
+            acc_text[:800] + (T("export_more_items", n=len(acc_series) - 20) if len(acc_series) > 20 else ""),
             language=None,
         )
-        st.caption(f"{len(acc_series):,} unique EPI_ISL accessions")
+        st.caption(T("export_epi_isl_count", n=f"{len(acc_series):,}"))
         st.download_button(
             label=T("export_accession_btn", n=len(acc_series)),
             data=acc_text.encode("utf-8"),
@@ -332,6 +332,13 @@ with st.expander(f"📋 {T('export_log_header')}"):
             "files":     T("log_col_files"),
         }
         log_df = pd.DataFrame(logs).rename(columns=_col_rename)
+        _act_col = T("log_col_action")
+        if _act_col in log_df.columns:
+            log_df[_act_col] = log_df[_act_col].replace({
+                "parse": T("log_action_parse"),
+                "activate": T("log_action_activate"),
+            })
+        log_df = log_df.fillna("-")
         st.dataframe(log_df, use_container_width=True, hide_index=True)
 
         # Download uses original log (raw dict keys preserved for machine-readability)
