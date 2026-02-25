@@ -9,10 +9,15 @@ CRITICAL STATE RULE:
 """
 
 import pandas as pd
+import requests
 import streamlit as st
 
 from utils.gisaid_parser import decompress_if_needed, parse_gisaid_fasta
 from utils.minimal_i18n import T
+
+# Size thresholds (bytes)
+_WARN_BYTES = 50 * 1024 * 1024   # 50 MB  — soft warning, still processes
+_HARD_BYTES = 200 * 1024 * 1024  # 200 MB — hard block (matches config.toml maxUploadSize)
 
 # Colab availability — non-fatal if running outside Google Colab
 try:
@@ -35,7 +40,7 @@ st.caption(T("upload_instruction"))
 
 uploaded_files = st.file_uploader(
     label=T("upload_instruction"),
-    type=["fasta", "fa", "fas", "txt", "text", "gz", "zip"],
+    type=["fasta", "fa", "fas", "fna", "txt", "text", "gz", "zip"],
     accept_multiple_files=True,
     key="file_uploader",
     label_visibility="collapsed",
@@ -47,6 +52,17 @@ if uploaded_files:
     for uf in uploaded_files:
         if uf.name in existing_names:
             continue  # Already parsed — @st.cache_data handles repeat calls anyway
+        # ── Size validation ──────────────────────────────────────────────
+        _sz = getattr(uf, "size", None)
+        if _sz is not None:
+            if _sz > _HARD_BYTES:
+                st.error(T("upload_file_too_large",
+                           mb=f"{_sz / 1024 / 1024:.0f}",
+                           max_mb=int(_HARD_BYTES / 1024 / 1024)))
+                continue
+            if _sz > _WARN_BYTES:
+                st.warning(T("upload_file_large_warn",
+                             mb=f"{_sz / 1024 / 1024:.0f}"))
         with st.spinner(f"Parsing `{uf.name}`…"):
             raw_bytes = uf.read()
             content = decompress_if_needed(raw_bytes, uf.name)
@@ -176,27 +192,46 @@ if not active_df.empty:
     with st.expander(T("workspace_url_expander")):
         url = st.text_input(T("workspace_url_input_label"), key="url_input")
         if st.button(T("workspace_url_fetch_btn"), disabled=not url):
+            _blocked = False
+            # ── HEAD check: get Content-Length before pulling the body ────
             try:
-                import requests
-                with st.spinner(f"Fetching {url}…"):
-                    r = requests.get(url, timeout=30)
-                    r.raise_for_status()
-                    fname = url.split("/")[-1] or "downloaded.fasta"
-                    content = decompress_if_needed(r.content, fname)
-                    parsed_list, parse_time = parse_gisaid_fasta(content, fname)
-                if parsed_list:
-                    st.session_state["raw_files"].append({
-                        "name":        fname,
-                        "parsed":      parsed_list,
-                        "parse_time":  parse_time,
-                        "n_sequences": len(parsed_list),
-                    })
-                    st.success(T("upload_parse_success", count=len(parsed_list), time=parse_time))
-                    st.rerun()
-                else:
-                    st.error(T("workspace_url_no_seqs"))
-            except Exception as e:
-                st.error(T("workspace_url_fetch_failed", error=e))
+                _head = requests.head(url, timeout=10, allow_redirects=True)
+                _cl = _head.headers.get("Content-Length")
+                if _cl:
+                    _remote_mb = int(_cl) / 1024 / 1024
+                    if _remote_mb > _HARD_BYTES / 1024 / 1024:
+                        st.error(T("upload_url_too_large",
+                                   mb=f"{_remote_mb:.0f}",
+                                   max_mb=int(_HARD_BYTES / 1024 / 1024)))
+                        _blocked = True
+                    elif _remote_mb > _WARN_BYTES / 1024 / 1024:
+                        st.warning(T("upload_url_large_warn",
+                                     mb=f"{_remote_mb:.0f}"))
+            except Exception:
+                pass  # HEAD unsupported — proceed; GET timeout guards the rest
+
+            if not _blocked:
+                try:
+                    with st.spinner(f"Fetching {url}…"):
+                        r = requests.get(url, timeout=60)
+                        r.raise_for_status()
+                        fname = url.split("/")[-1].split("?")[0] or "downloaded.fasta"
+                        content = decompress_if_needed(r.content, fname)
+                        parsed_list, parse_time = parse_gisaid_fasta(content, fname)
+                    if parsed_list:
+                        st.session_state["raw_files"].append({
+                            "name":        fname,
+                            "parsed":      parsed_list,
+                            "parse_time":  parse_time,
+                            "n_sequences": len(parsed_list),
+                        })
+                        st.success(T("upload_parse_success",
+                                     count=len(parsed_list), time=parse_time))
+                        st.rerun()
+                    else:
+                        st.error(T("workspace_url_no_seqs"))
+                except Exception as e:
+                    st.error(T("workspace_url_fetch_failed", error=e))
 
 # ---------------------------------------------------------------------------
 # Section 4 — Google Drive / Colab Integration (conditional)
