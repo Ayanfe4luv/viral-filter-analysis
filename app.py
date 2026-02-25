@@ -88,6 +88,11 @@ def _init_session_state() -> None:
         # 'current'  → filtered_df if available, else active_df
         # 'original' → always active_df (raw snapshot from activation)
         "data_mode": "original",
+
+        # --- Export filename prefix ---
+        # Prepended to every downloaded file name across all pages.
+        # E.g. "myproject" → myproject_20250225_1430.fasta
+        "export_prefix": "virsift",
     }
     for key, default in defaults.items():
         if key not in st.session_state:
@@ -628,6 +633,23 @@ def _render_sidebar() -> None:
 
         st.divider()
 
+        # --- Export filename prefix ---
+        _cur_pfx = st.session_state.get("export_prefix", "virsift")
+        _new_pfx = st.text_input(
+            T("sidebar_export_prefix_label"),
+            value=_cur_pfx,
+            max_chars=40,
+            help=T("sidebar_export_prefix_help"),
+            key="export_prefix_input",
+        )
+        if _new_pfx and _new_pfx.strip():
+            # Sanitise: keep alphanumeric, hyphen, underscore only
+            import re as _re
+            _safe = _re.sub(r"[^\w\-]", "_", _new_pfx.strip())
+            st.session_state["export_prefix"] = _safe
+        else:
+            st.session_state["export_prefix"] = "virsift"
+
         # --- Quick Actions ---
         st.markdown(f"**{T('sidebar_quick_actions')}**")
 
@@ -636,10 +658,11 @@ def _render_sidebar() -> None:
             try:
                 from utils.gisaid_parser import convert_df_to_fasta
                 _fasta_out = convert_df_to_fasta(_filtered_df)
+                _pfx = st.session_state.get("export_prefix", "virsift") or "virsift"
                 st.download_button(
                     label=T("download_fasta_label", count=len(_filtered_df)),
                     data=_fasta_out,
-                    file_name=f"vss_export_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.fasta",
+                    file_name=f"{_pfx}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.fasta",
                     mime="text/plain",
                     use_container_width=True,
                     type="primary",
