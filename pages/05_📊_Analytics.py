@@ -707,8 +707,12 @@ with ctrl_col:
             options=[k for k, v in _FIELD_MAP.items() if v in _df_enriched.columns],
             key="an_field",
         )
-        chart_sub = c2.radio(T("analytics_dist_mode"), options=["bar", "pie"],
-                             horizontal=True, key="an_dist_mode")
+        _bar_label = T("analytics_dist_bar")
+        _pie_label = T("analytics_dist_pie")
+        _sub_label = c2.radio(T("analytics_dist_mode"),
+                              options=[_bar_label, _pie_label],
+                              horizontal=True, key="an_dist_mode")
+        chart_sub = "pie" if _sub_label == _pie_label else "bar"
         top_n = c3.number_input(T("analytics_top_n"), min_value=3, max_value=50,
                                  value=10, step=1, key="an_top_n")
 
@@ -1111,8 +1115,8 @@ st.divider()
 _an1, _an2 = st.columns(2)
 try:
     _an1.page_link("pages/03_🔬_Sequence_Refinery.py",
-                   label="← 🔬 Sequence Refinery", use_container_width=True)
+                   label=f"← 🔬 {T('nav_refinery')}", use_container_width=True)
     _an2.page_link("pages/06_📋_Export.py",
-                   label="📋 Export →", use_container_width=True)
+                   label=f"📋 {T('nav_export')} →", use_container_width=True)
 except AttributeError:
     pass  # st.page_link available in Streamlit ≥ 1.29

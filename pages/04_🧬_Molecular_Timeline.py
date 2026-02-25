@@ -123,8 +123,8 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
     d2.metric(T("timeline_unique_clones"),      f"{unique_hashes:,}")
     d3.metric(T("timeline_in_dup_clusters"),    f"{in_clusters:,}")
 
-    # Caption about source
-    _src = "filtered" if not _filtered_df.empty else "active"
+    # Caption about source — use translated terms so they render in current language
+    _src = T("timeline_src_filtered") if not _filtered_df.empty else T("timeline_src_active")
     st.caption(T("timeline_data_source", src=_src))
 
     # Top duplicate clusters preview
@@ -152,8 +152,38 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
         )
 
         st.subheader(T("timeline_top_clusters"))
+
+        # ── Inline colour + view controls ─────────────────────────────────────
+        _ctrl_c, _ctrl_v, _ctrl_sp = st.columns([1, 1, 2])
+        with _ctrl_c:
+            _sb_scheme_opts2 = list(_TIMELINE_PALETTES.keys())
+            st.selectbox(
+                T("timeline_chart_colour"),
+                options=_sb_scheme_opts2,
+                index=_sb_scheme_opts2.index(_tl_scheme_name)
+                       if _tl_scheme_name in _sb_scheme_opts2 else 0,
+                key="timeline_chart_scheme",
+                help=T("timeline_chart_colour_help"),
+            )
+            # Re-read palette after widget (takes effect next rerun but swatch is live)
+            _tl_pal = _TIMELINE_PALETTES.get(
+                st.session_state.get("timeline_chart_scheme", _tl_scheme_name),
+                _TIMELINE_PALETTES["🔵 Ocean Blue"],
+            )
+        with _ctrl_v:
+            _right_view = st.radio(
+                T("timeline_view_mode"),
+                options=[T("timeline_view_sunburst"),
+                         T("timeline_view_treemap"),
+                         T("timeline_view_table")],
+                horizontal=False,
+                key="tl_diag_view",
+                label_visibility="visible",
+            )
+
         try:
             import plotly.express as _px_diag
+            import plotly.graph_objects as _go_diag
 
             _col_bar, _col_sun = st.columns([2, 1])
 
@@ -161,21 +191,25 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
             with _col_bar:
                 _diag_plot = cluster_summary.query("count >= 2").head(12).sort_values("count").copy()
 
-                # Color by circulation duration (days) when dates are available
                 if _has_dates_d and "first_date" in _diag_plot.columns and "last_date" in _diag_plot.columns:
                     try:
                         _diag_plot["_duration"] = (
                             pd.to_datetime(_diag_plot["last_date"],  errors="coerce") -
                             pd.to_datetime(_diag_plot["first_date"], errors="coerce")
                         ).dt.days.fillna(0).clip(lower=0).astype(int)
+                        _diag_plot["_pct"] = (_diag_plot["count"] / max(total_seqs, 1) * 100).round(1)
                         _color_col  = "_duration"
-                        _cbar_title = "Days in circulation"
-                        _cdata      = ["first_date", "last_date"]
+                        _cbar_title = T("timeline_diag_duration_hardcode")
+                        _cdata      = ["first_date", "last_date", "_duration", "_pct",
+                                       "subtype" if "subtype" in _diag_plot.columns else "count"]
                         _hover_tmpl = (
                             "<b>%{y}</b><br>"
-                            "Sequences: %{x}<br>"
-                            "First seen: %{customdata[0]}<br>"
-                            "Last seen: %{customdata[1]}<extra></extra>"
+                            f"{T('timeline_diag_axis_count')}: %{{x}}"
+                            " (%{customdata[3]:.1f}% of dataset)<br>"
+                            f"{T('timeline_col_first')}: %{{customdata[0]}}<br>"
+                            f"{T('timeline_col_last')}: %{{customdata[1]}}<br>"
+                            f"{T('timeline_diag_duration_days')}: %{{customdata[2]}} days"
+                            "<extra></extra>"
                         )
                     except Exception:
                         _color_col  = "count"
@@ -197,10 +231,13 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
                     color_continuous_scale=_tl_pal["seq"],
                     custom_data=_cdata,
                 )
-                _fig_diag.update_traces(hovertemplate=_hover_tmpl)
+                _fig_diag.update_traces(
+                    hovertemplate=_hover_tmpl,
+                    marker_line_width=0,
+                )
                 _fig_diag.update_layout(
                     margin=dict(t=10, b=0, l=0, r=10),
-                    height=max(240, len(_diag_plot) * 34 + 60),
+                    height=max(280, len(_diag_plot) * 38 + 60),
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
                     coloraxis_showscale=True,
@@ -210,7 +247,7 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
                 )
                 st.plotly_chart(_fig_diag, use_container_width=True)
 
-            # ── Right: multi-level sunburst (size bucket × subtype) ─────────────
+            # ── Right: sunburst / treemap / table (user-selectable) ───────────
             with _col_sun:
                 st.caption(T("timeline_cluster_dist_title"))
 
@@ -223,6 +260,16 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
 
                 _sun_df = cluster_summary.copy()
                 _sun_df["size_bucket"] = _sun_df["count"].apply(_size_bucket)
+
+                # Categorical color map — each size tier gets a distinct colour
+                # that is visually harmonious with the selected palette accent
+                _BUCKET_COLORS = {
+                    T("timeline_cluster_singletons"): "#94a3b8",
+                    T("timeline_cluster_small"):      _tl_pal["accent"],
+                    T("timeline_cluster_medium"):     "#f59e0b",
+                    T("timeline_cluster_large"):      "#dc2626",
+                    T("timeline_cluster_major"):      "#7c3aed",
+                }
 
                 if _has_subtype_d and "subtype" in _sun_df.columns:
                     _sun_agg = (
@@ -239,20 +286,81 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
                     )
                     _sun_path = ["size_bucket"]
 
-                _fig_sun = _px_diag.sunburst(
-                    _sun_agg,
-                    path=_sun_path,
-                    values="total",
-                    color="total",
-                    color_continuous_scale=_tl_pal["seq"],
-                )
-                _fig_sun.update_layout(
-                    margin=dict(t=0, b=0, l=0, r=0),
-                    height=max(240, len(_diag_plot) * 34 + 60),
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    coloraxis_showscale=False,
-                )
-                st.plotly_chart(_fig_sun, use_container_width=True)
+                _sun_height = max(280, len(_diag_plot) * 38 + 60)
+
+                _view_sun = T("timeline_view_sunburst")
+                _view_tm  = T("timeline_view_treemap")
+                _view_tbl = T("timeline_view_table")
+
+                if _right_view == _view_tbl:
+                    # Detailed sortable table
+                    _tbl = cluster_summary.query("count >= 2").copy()
+                    _tbl["_pct"] = (_tbl["count"] / max(total_seqs, 1) * 100).round(1)
+                    if _has_dates_d and "first_date" in _tbl.columns:
+                        _tbl["_days"] = (
+                            pd.to_datetime(_tbl["last_date"],  errors="coerce") -
+                            pd.to_datetime(_tbl["first_date"], errors="coerce")
+                        ).dt.days.fillna(0).astype(int)
+                    _tbl_rename = {
+                        "representative": T("timeline_col_clone"),
+                        "count":          T("timeline_col_total"),
+                        "_pct":           T("timeline_diag_pct_dataset"),
+                        "_days":          T("timeline_diag_duration_days"),
+                        "subtype":        T("obs_col_subtype"),
+                        "first_date":     T("timeline_col_first"),
+                        "last_date":      T("timeline_col_last"),
+                    }
+                    _tbl = _tbl.rename(columns={k: v for k, v in _tbl_rename.items()
+                                                if k in _tbl.columns})
+                    st.dataframe(_tbl, use_container_width=True,
+                                 hide_index=True, height=_sun_height)
+
+                elif _right_view == _view_tm:
+                    _fig_tm = _px_diag.treemap(
+                        _sun_agg, path=_sun_path, values="total",
+                        color="size_bucket",
+                        color_discrete_map=_BUCKET_COLORS,
+                    )
+                    _fig_tm.update_traces(
+                        textinfo="label+value+percent parent",
+                        hovertemplate=(
+                            "<b>%{label}</b><br>"
+                            "Sequences: %{value}<br>"
+                            "%{percentParent:.1%} of parent<extra></extra>"
+                        ),
+                    )
+                    _fig_tm.update_layout(
+                        margin=dict(t=0, b=0, l=0, r=0),
+                        height=_sun_height,
+                        paper_bgcolor="rgba(0,0,0,0)",
+                    )
+                    st.plotly_chart(_fig_tm, use_container_width=True)
+
+                else:  # Sunburst (default)
+                    _fig_sun = _px_diag.sunburst(
+                        _sun_agg,
+                        path=_sun_path,
+                        values="total",
+                        color="size_bucket",
+                        color_discrete_map=_BUCKET_COLORS,
+                        branchvalues="total",
+                    )
+                    _fig_sun.update_traces(
+                        textinfo="label+percent entry",
+                        hovertemplate=(
+                            "<b>%{label}</b><br>"
+                            "Sequences: %{value}<br>"
+                            "%{percentEntry:.1%} of this level"
+                            "<extra></extra>"
+                        ),
+                        insidetextorientation="radial",
+                    )
+                    _fig_sun.update_layout(
+                        margin=dict(t=0, b=0, l=0, r=0),
+                        height=_sun_height,
+                        paper_bgcolor="rgba(0,0,0,0)",
+                    )
+                    st.plotly_chart(_fig_sun, use_container_width=True)
 
         except Exception:
             st.dataframe(
@@ -763,15 +871,15 @@ with st.sidebar:
     st.caption(T("timeline_sidebar_tip"))
 
     # ── Chart colour scheme ────────────────────────────────────────────────
-    st.markdown("**Chart Colour**")
+    st.markdown(f"**{T('timeline_chart_colour')}**")
     _sb_scheme_opts = list(_TIMELINE_PALETTES.keys())
     st.selectbox(
-        "Chart Colour",
+        T("timeline_chart_colour"),
         options=_sb_scheme_opts,
         index=_sb_scheme_opts.index(_tl_scheme_name) if _tl_scheme_name in _sb_scheme_opts else 0,
         key="timeline_chart_scheme",
         label_visibility="collapsed",
-        help="Applies to the cluster bar, sunburst and epidemic curve.",
+        help=T("timeline_chart_colour_help"),
     )
     # Live colour swatch
     _sb_accent = _TIMELINE_PALETTES.get(
@@ -791,11 +899,11 @@ st.divider()
 _tl_n1, _tl_n2 = st.columns(2)
 try:
     _tl_n1.page_link("pages/03_🔬_Sequence_Refinery.py",
-                     label="← 🔬 Sequence Refinery",
+                     label=f"← 🔬 {T('nav_refinery')}",
                      use_container_width=True)
     _tl_n2.page_link("pages/05_📊_Analytics.py",
-                     label="📊 Analytics →",
+                     label=f"📊 {T('nav_analytics')} →",
                      use_container_width=True)
 except AttributeError:
-    _tl_n1.markdown("[← 🔬 Sequence Refinery](pages/03_🔬_Sequence_Refinery.py)")
-    _tl_n2.markdown("[📊 Analytics →](pages/05_📊_Analytics.py)")
+    _tl_n1.markdown(f"[← 🔬 {T('nav_refinery')}](pages/03_🔬_Sequence_Refinery.py)")
+    _tl_n2.markdown(f"[📊 {T('nav_analytics')} →](pages/05_📊_Analytics.py)")

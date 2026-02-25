@@ -323,14 +323,24 @@ with st.expander(f"📋 {T('export_log_header')}"):
 
     logs = st.session_state.get("action_logs", [])
     if logs:
-        log_df = pd.DataFrame(logs)
+        _col_rename = {
+            "action":    T("log_col_action"),
+            "file":      T("log_col_file"),
+            "sequences": T("log_col_sequences"),
+            "time_s":    T("log_col_time_s"),
+            "timestamp": T("log_col_timestamp"),
+            "files":     T("log_col_files"),
+        }
+        log_df = pd.DataFrame(logs).rename(columns=_col_rename)
         st.dataframe(log_df, use_container_width=True, hide_index=True)
 
+        # Download uses original log (raw dict keys preserved for machine-readability)
+        _raw_log_df = pd.DataFrame(logs)
         dl1, dl2 = st.columns(2)
         with dl1:
             st.download_button(
                 label=T("export_log_csv_btn"),
-                data=log_df.to_csv(index=False).encode("utf-8"),
+                data=_raw_log_df.to_csv(index=False).encode("utf-8"),
                 file_name=f"virsift_log_{ts}.csv",
                 mime="text/csv",
                 use_container_width=True,
@@ -346,7 +356,7 @@ with st.expander(f"📋 {T('export_log_header')}"):
                 help=T("export_log_tooltip"),
             )
     else:
-        st.info("No operations logged this session.")
+        st.info(T("export_no_ops_logged"))
 
 
 # ---------------------------------------------------------------------------
@@ -360,7 +370,7 @@ with st.sidebar:
     st.metric(T("obs_col_count"), f"{len(_export_df):,}")
     if not _filtered_df.empty and not _active_df.empty:
         pct = round(len(_filtered_df) / max(len(_active_df), 1) * 100, 1)
-        st.caption(f"{pct}% of active dataset")
+        st.caption(f"{pct}{T('export_pct_of_active')}")
 
 # ---------------------------------------------------------------------------
 # Inter-page navigation
@@ -369,7 +379,7 @@ st.divider()
 _ex_nav1, _ex_nav2 = st.columns(2)
 try:
     _ex_nav1.page_link("pages/05_📊_Analytics.py",
-                       label="← 📊 Analytics",
+                       label=f"← 📊 {T('nav_analytics')}",
                        use_container_width=True)
 except AttributeError:
-    _ex_nav1.markdown("[← 📊 Analytics](pages/05_📊_Analytics.py)")
+    _ex_nav1.markdown(f"[← 📊 {T('nav_analytics')}](pages/05_📊_Analytics.py)")

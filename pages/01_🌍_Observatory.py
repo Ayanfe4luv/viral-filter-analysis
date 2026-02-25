@@ -112,7 +112,7 @@ if _active_df.empty:
         </div>
         """, unsafe_allow_html=True)
         try:
-            col.page_link(page_path, label=f"Go to {title} →",
+            col.page_link(page_path, label=T("nav_go_to", title=title),
                           use_container_width=True)
         except AttributeError:
             pass  # st.page_link available in Streamlit ≥ 1.29
@@ -422,22 +422,25 @@ col_sub, col_host, col_seg = st.columns(3)
 with col_sub:
     st.subheader(T("obs_top_subtypes"))
     if "subtype_clean" in _display_df.columns:
-        top = _display_df["subtype_clean"].value_counts().head(8).reset_index()
-        top.columns = [T("obs_col_subtype"), T("obs_col_count")]
+        _vc = _display_df["subtype_clean"].value_counts().head(8)
+        top = pd.DataFrame({T("obs_col_subtype"): _vc.index.tolist(),
+                            T("obs_col_count"):   _vc.values.tolist()})
         st.dataframe(top, use_container_width=True, hide_index=True)
 
 with col_host:
     st.subheader(T("obs_top_hosts"))
     if "host" in _display_df.columns:
-        top = _display_df["host"].value_counts().head(8).reset_index()
-        top.columns = [T("obs_col_host"), T("obs_col_count")]
+        _vc = _display_df["host"].value_counts().head(8)
+        top = pd.DataFrame({T("obs_col_host"):  _vc.index.tolist(),
+                            T("obs_col_count"): _vc.values.tolist()})
         st.dataframe(top, use_container_width=True, hide_index=True)
 
 with col_seg:
     st.subheader(T("obs_top_segments"))
     if "segment" in _display_df.columns:
-        top = _display_df["segment"].value_counts().head(8).reset_index()
-        top.columns = [T("obs_col_segment"), T("obs_col_count")]
+        _vc = _display_df["segment"].value_counts().head(8)
+        top = pd.DataFrame({T("obs_col_segment"): _vc.index.tolist(),
+                            T("obs_col_count"):    _vc.values.tolist()})
         st.dataframe(top, use_container_width=True, hide_index=True)
 
 # ── Row 4: Top locations ──────────────────────────────────────────────────────
@@ -445,8 +448,9 @@ if _show_locs:
     st.divider()
     st.subheader(T("obs_top_locations"))
     if "location" in _display_df.columns:
-        top_loc = _display_df["location"].value_counts().head(15).reset_index()
-        top_loc.columns = [T("obs_col_location"), T("obs_col_count")]
+        _vc_loc = _display_df["location"].value_counts().head(15)
+        top_loc = pd.DataFrame({T("obs_col_location"): _vc_loc.index.tolist(),
+                                T("obs_col_count"):    _vc_loc.values.tolist()})
         try:
             import plotly.express as px
             fig = px.bar(
@@ -469,9 +473,9 @@ _clade_col = "clade" if "clade" in _display_df.columns else "clade_l1"
 if _show_clades and _clade_col in _display_df.columns:
     st.divider()
     st.subheader(T("obs_clade_dist"))
-    top_clade = (_display_df[_clade_col].dropna()
-                 .value_counts().head(10).reset_index())
-    top_clade.columns = [T("obs_col_clade"), T("obs_col_count")]
+    _vc_clade = _display_df[_clade_col].dropna().value_counts().head(10)
+    top_clade = pd.DataFrame({T("obs_col_clade"): _vc_clade.index.tolist(),
+                              T("obs_col_count"): _vc_clade.values.tolist()})
     try:
         import plotly.express as px
         fig = px.pie(
@@ -489,16 +493,24 @@ if _show_clades and _clade_col in _display_df.columns:
 action_logs = st.session_state.get("action_logs", [])
 if action_logs:
     st.divider()
+    _col_rename = {
+        "action":    T("log_col_action"),
+        "file":      T("log_col_file"),
+        "sequences": T("log_col_sequences"),
+        "time_s":    T("log_col_time_s"),
+        "timestamp": T("log_col_timestamp"),
+        "files":     T("log_col_files"),
+    }
     with st.expander(T("obs_action_log_header")):
-        st.dataframe(pd.DataFrame(action_logs),
-                     use_container_width=True, hide_index=True)
+        _log_df = pd.DataFrame(action_logs).rename(columns=_col_rename)
+        st.dataframe(_log_df, use_container_width=True, hide_index=True)
 
 # ── Inter-page navigation ─────────────────────────────────────────────────────
 st.divider()
 _nav1, _nav2 = st.columns(2)
 try:
     _nav2.page_link("pages/02_📁_Workspace.py",
-                    label="📁 Workspace →",
+                    label=f"📁 {T('nav_workspace')} →",
                     use_container_width=True)
 except AttributeError:
-    _nav2.markdown("[📁 Workspace →](pages/02_📁_Workspace.py)")
+    _nav2.markdown(f"[📁 {T('nav_workspace')} →](pages/02_📁_Workspace.py)")

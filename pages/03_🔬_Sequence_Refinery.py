@@ -547,9 +547,9 @@ st.divider()
 _pn1, _pn2 = st.columns(2)
 try:
     _pn1.page_link("pages/02_📁_Workspace.py",
-                   label="← 📁 Workspace", use_container_width=True)
+                   label=f"← 📁 {T('nav_workspace')}", use_container_width=True)
     _pn2.page_link("pages/05_📊_Analytics.py",
-                   label="📊 Analytics →", use_container_width=True)
+                   label=f"📊 {T('nav_analytics')} →", use_container_width=True)
 except AttributeError:
     pass  # st.page_link available in Streamlit ≥ 1.29
 
