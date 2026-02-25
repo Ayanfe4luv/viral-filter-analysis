@@ -21,9 +21,15 @@ from utils.minimal_i18n import T, init_translations
 # ---------------------------------------------------------------------------
 # Page config — must be the first Streamlit call in the script
 # ---------------------------------------------------------------------------
+try:
+    from PIL import Image as _PIL_Image
+    _page_icon = _PIL_Image.open("assets/Viral_sift_logo.png")
+except Exception:
+    _page_icon = "🧬"
+
 st.set_page_config(
     page_title="Vir-Seq-Sift",
-    page_icon="🧬",
+    page_icon=_page_icon,
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
