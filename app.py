@@ -626,6 +626,23 @@ def _render_sidebar() -> None:
                     T("sidebar_avg_length"),
                     f"{_active_df['sequence_length'].mean():.0f} bp",
                 )
+            # Source file count — derived from last activation log
+            _all_logs = st.session_state.get("action_logs", [])
+            _last_act = next(
+                (lg for lg in reversed(_all_logs) if lg.get("action") == "activate"),
+                None,
+            )
+            if _last_act:
+                _n_src = len(_last_act.get("files", []))
+                if _n_src > 1:
+                    st.caption(
+                        f"📦 **{_n_src} source files** merged — "
+                        f"use 🧬 Timeline to analyse each file separately"
+                    )
+                else:
+                    st.caption(
+                        f"📦 1 source file in dataset"
+                    )
             if len(_active_df) > 10_000:
                 st.warning(T("sidebar_large_dataset_warning"))
         else:
@@ -662,7 +679,7 @@ def _render_sidebar() -> None:
                 st.download_button(
                     label=T("download_fasta_label", count=len(_filtered_df)),
                     data=_fasta_out,
-                    file_name=f"{_pfx}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.fasta",
+                    file_name=f"{_pfx}_filtered.fasta",
                     mime="text/plain",
                     use_container_width=True,
                     type="primary",
