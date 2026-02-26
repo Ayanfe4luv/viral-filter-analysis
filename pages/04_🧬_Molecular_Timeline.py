@@ -63,6 +63,65 @@ _tl_pal = _TIMELINE_PALETTES.get(_tl_scheme_name, _TIMELINE_PALETTES["🔵 Ocean
 st.title(f"🧬 {T('timeline_title')}")
 st.caption(T("timeline_caption"))
 
+# ── Workflow guide (bold, always visible) ────────────────────────────────────
+st.markdown(f"""
+**{T('timeline_workflow_header')}**
+
+**{T('timeline_workflow_step1')}**
+
+**{T('timeline_workflow_step2')}**
+
+**{T('timeline_workflow_step3')}**
+""")
+st.divider()
+
+# ── Per-file scope selector ───────────────────────────────────────────────────
+# When multiple files were loaded and activated, the user can restrict ALL phases
+# (diagnostics, configuration, matrix, preview/export) to a single source file.
+# This lets you compare cluster behaviour across different datasets side-by-side
+# by toggling between files without re-uploading.
+_tl_raw_files = st.session_state.get("raw_files", [])
+_tl_act_logs  = st.session_state.get("action_logs", [])
+_tl_last_act  = next(
+    (lg for lg in reversed(_tl_act_logs) if lg.get("action") == "activate"),
+    None,
+)
+_tl_act_names = _tl_last_act.get("files", []) if _tl_last_act else []
+_tl_contrib   = [rf for rf in _tl_raw_files if rf["name"] in _tl_act_names]
+
+if len(_tl_contrib) > 1:
+    _scope_opts = [T("timeline_scope_all")] + [rf["name"] for rf in _tl_contrib]
+    _tl_scope = st.radio(
+        T("timeline_scope_label"),
+        options=_scope_opts,
+        index=st.session_state.get("tl_scope_idx", 0),
+        horizontal=True,
+        key="tl_file_scope",
+        help=T("timeline_scope_help"),
+    )
+    # Store index for next rerun to preserve selection
+    st.session_state["tl_scope_idx"] = _scope_opts.index(_tl_scope)
+
+    if _tl_scope != T("timeline_scope_all"):
+        # Override _display_df with the chosen file's raw data
+        _scope_rf = next(rf for rf in _tl_contrib if rf["name"] == _tl_scope)
+        _display_df = pd.DataFrame(_scope_rf["parsed"])
+        # Ensure sequence_hash is present (parse_gisaid_fasta adds it, but safeguard)
+        if "sequence_hash" not in _display_df.columns and "sequence" in _display_df.columns:
+            _display_df = _display_df.copy()
+            _display_df["sequence_hash"] = (
+                _display_df["sequence"]
+                .fillna("")
+                .apply(lambda s: hashlib.md5(s.upper().encode()).hexdigest()[:12])
+            )
+        _mode_badge = f"📁 {_tl_scope[:30]}"
+        st.success(T("timeline_scope_file_badge",
+                     file=_tl_scope, n=len(_display_df)))
+    else:
+        st.caption(T("timeline_scope_all_caption", n=len(_tl_contrib)))
+
+    st.divider()
+
 # ── Mission statement ─────────────────────────────────────────────────────────
 st.info(f"""
 {T('timeline_mission_header')}
@@ -134,6 +193,8 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
         _has_subtype_d = "subtype" in _display_df.columns
         _has_isolate_d = "isolate" in _display_df.columns
 
+        _has_clade_d  = "clade" in _display_df.columns
+
         _agg_spec: dict = {
             "count":          ("sequence_hash", "size"),
             "representative": ("isolate", "first") if _has_isolate_d else ("sequence_hash", "first"),
@@ -143,6 +204,8 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
             _agg_spec["last_date"]  = ("collection_date", "max")
         if _has_subtype_d:
             _agg_spec["subtype"] = ("subtype", "first")
+        if _has_clade_d:
+            _agg_spec["clade"] = ("clade", "first")
 
         cluster_summary = (
             _display_df.groupby("sequence_hash")
@@ -153,7 +216,8 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
 
         st.subheader(T("timeline_top_clusters"))
 
-        # ── Inline colour + view controls ─────────────────────────────────────
+        # ── Inline colour + view + top-N controls ─────────────────────────────
+        _total_diag = len(cluster_summary)
         _ctrl_c, _ctrl_v, _ctrl_sp = st.columns([1, 1, 2])
         with _ctrl_c:
             _sb_scheme_opts2 = list(_TIMELINE_PALETTES.keys())
@@ -181,15 +245,27 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
                 label_visibility="visible",
             )
 
+        with _ctrl_sp:
+            # Top-N slider — controls bar chart rows and table rows.
+            # Setting to max includes singletons (count = 1).
+            _top_n_diag = st.slider(
+                T("timeline_top_n_label"),
+                min_value=1,
+                max_value=max(_total_diag, 1),
+                value=min(12, max(_total_diag, 1)),
+                help=T("timeline_top_n_help"),
+                key="tl_diag_top_n",
+            )
+
         try:
             import plotly.express as _px_diag
-            import plotly.graph_objects as _go_diag
 
             _col_bar, _col_sun = st.columns([2, 1])
 
-            # ── Left: enhanced horizontal bar (top 12 multi-sequence clusters) ──
+            # ── Left: horizontal bar — top N clusters by count (includes singletons
+            #    when slider is dragged all the way right) ──────────────────────────
             with _col_bar:
-                _diag_plot = cluster_summary.query("count >= 2").head(12).sort_values("count").copy()
+                _diag_plot = cluster_summary.head(_top_n_diag).sort_values("count").copy()
 
                 if _has_dates_d and "first_date" in _diag_plot.columns and "last_date" in _diag_plot.columns:
                     try:
@@ -271,7 +347,17 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
                     T("timeline_cluster_major"):      "#7c3aed",
                 }
 
-                if _has_subtype_d and "subtype" in _sun_df.columns:
+                _has_clade_sun = "clade" in _sun_df.columns and _sun_df["clade"].notna().any()
+                if _has_subtype_d and "subtype" in _sun_df.columns and _has_clade_sun:
+                    # 3-level hierarchy: size bucket → subtype → clade
+                    _sun_df["clade"] = _sun_df["clade"].fillna("Unknown")
+                    _sun_agg = (
+                        _sun_df.groupby(["size_bucket", "subtype", "clade"], dropna=False)
+                        .agg(total=("count", "sum"))
+                        .reset_index()
+                    )
+                    _sun_path = ["size_bucket", "subtype", "clade"]
+                elif _has_subtype_d and "subtype" in _sun_df.columns:
                     _sun_agg = (
                         _sun_df.groupby(["size_bucket", "subtype"], dropna=False)
                         .agg(total=("count", "sum"))
@@ -293,8 +379,9 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
                 _view_tbl = T("timeline_view_table")
 
                 if _right_view == _view_tbl:
-                    # Detailed sortable table
-                    _tbl = cluster_summary.query("count >= 2").copy()
+                    # Detailed sortable table — top N rows (includes singletons
+                    # when slider reaches them; no count >= 2 filter here)
+                    _tbl = cluster_summary.head(_top_n_diag).copy()
                     _tbl["_pct"] = (_tbl["count"] / max(total_seqs, 1) * 100).round(1)
                     if _has_dates_d and "first_date" in _tbl.columns:
                         _tbl["_days"] = (
@@ -307,6 +394,7 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
                         "_pct":           T("timeline_diag_pct_dataset"),
                         "_days":          T("timeline_diag_duration_days"),
                         "subtype":        T("obs_col_subtype"),
+                        "clade":          T("obs_col_clade"),
                         "first_date":     T("timeline_col_first"),
                         "last_date":      T("timeline_col_last"),
                     }
@@ -368,14 +456,61 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
                 use_container_width=True, hide_index=True,
             )
 
-        # CSV download of full cluster summary (duplicate clusters only)
-        st.download_button(
-            label=T("timeline_download_cluster_csv"),
-            data=cluster_summary.query("count >= 2").to_csv(index=False).encode("utf-8"),
-            file_name=f"timeline_clusters_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
+        # ── Downloads row: raw cluster CSV + annotated interpretation CSV ─────
+        _pfx_p1 = st.session_state.get("export_prefix", "virsift") or "virsift"
+        _dl_c1, _dl_c2 = st.columns(2)
+
+        with _dl_c1:
+            st.download_button(
+                label=T("timeline_download_cluster_csv"),
+                data=cluster_summary.to_csv(index=False).encode("utf-8"),
+                file_name=f"{_pfx_p1}_cluster_summary.csv",
+                mime="text/csv",
+                use_container_width=True,
+                help=f"📄 {_pfx_p1}_cluster_summary.csv · rename prefix in sidebar",
+            )
+
+        with _dl_c2:
+            # Annotated interpretation CSV — adds a Size Bucket and Implication column
+            # explaining what each cluster size means epidemiologically.
+            _interp_rows = []
+            _BUCKET_IMPLS = [
+                (T("timeline_cluster_singletons"), "×1",    T("timeline_cluster_implication_singleton")),
+                (T("timeline_cluster_small"),      "×2–4",  T("timeline_cluster_implication_small")),
+                (T("timeline_cluster_medium"),     "×5–9",  T("timeline_cluster_implication_medium")),
+                (T("timeline_cluster_large"),      "×10–19",T("timeline_cluster_implication_large")),
+                (T("timeline_cluster_major"),      "×20+",  T("timeline_cluster_implication_major")),
+            ]
+            def _bucket_for_n(n: int) -> str:
+                if n == 1:  return T("timeline_cluster_singletons")
+                if n <= 4:  return T("timeline_cluster_small")
+                if n <= 9:  return T("timeline_cluster_medium")
+                if n <= 19: return T("timeline_cluster_large")
+                return T("timeline_cluster_major")
+            _impl_map = {row[0]: row[2] for row in _BUCKET_IMPLS}
+            _annot = cluster_summary.copy()
+            _annot[T("timeline_cluster_size_bucket")] = _annot["count"].apply(_bucket_for_n)
+            _annot[T("timeline_cluster_implication")] = _annot[T("timeline_cluster_size_bucket")].map(_impl_map)
+            # Append the interpretation guide rows at the bottom, separated by a blank
+            _guide_df = pd.DataFrame([
+                {T("timeline_cluster_size_bucket"): b, T("timeline_cluster_size_range"): r,
+                 T("timeline_cluster_implication"): imp}
+                for b, r, imp in _BUCKET_IMPLS
+            ])
+            _annot_csv = (
+                _annot.to_csv(index=False)
+                + "\n\n"
+                + f"# {T('timeline_cluster_dist_csv_title')}\n"
+                + _guide_df.to_csv(index=False)
+            )
+            st.download_button(
+                label=T("timeline_cluster_dist_download"),
+                data=_annot_csv.encode("utf-8"),
+                file_name=f"{_pfx_p1}_cluster_distribution.csv",
+                mime="text/csv",
+                use_container_width=True,
+                help=f"📄 {_pfx_p1}_cluster_distribution.csv — includes size bucket explanations · rename prefix in sidebar",
+            )
     else:
         st.info(T("timeline_all_singletons"))
 
@@ -389,7 +524,7 @@ with st.expander(f"⚙️ {T('timeline_config_header')}", expanded=True):
     with cfg1:
         min_cluster = st.slider(
             T("timeline_min_cluster_size"),
-            min_value=2, max_value=20, value=3,
+            min_value=1, max_value=500, value=3,
             help=T("timeline_min_cluster_help"),
             key="tl_min_cluster",
         )
@@ -403,23 +538,37 @@ with st.expander(f"⚙️ {T('timeline_config_header')}", expanded=True):
                 T("timeline_rep_quality"),
                 T("timeline_rep_random"),
             ],
-            index=2,  # default: highest quality
+            index=0,  # default: Earliest sequence (first collected that month)
             key="tl_rep_logic",
             help=T("timeline_rep_logic_help"),
         )
 
     # Max sequences per month — shown when multiple occurrences exist in a month
+    _max_per_month_opts = [
+        T("timeline_max1"),
+        T("timeline_max2"),
+        T("timeline_maxn"),
+        T("timeline_maxall"),
+    ]
     st.selectbox(
         T("timeline_max_per_month"),
-        options=[
-            T("timeline_max1"),
-            T("timeline_max2"),
-            T("timeline_maxall"),
-        ],
+        options=_max_per_month_opts,
         index=0,
         key="tl_max_per_month",
         help=T("timeline_max_per_month_help"),
     )
+
+    # Custom N input — shown only when "N — Custom count" is selected
+    if st.session_state.get("tl_max_per_month") == T("timeline_maxn"):
+        st.number_input(
+            T("timeline_maxn_input"),
+            min_value=3,
+            max_value=1000,
+            value=5,
+            step=1,
+            key="tl_max_n_custom",
+            help="Applies per calendar month per clone. Values of 3–10 are typical.",
+        )
 
     # Sequence identity guarantee info
     st.info(f"""
@@ -537,9 +686,40 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
                           "first_seen", "last_seen", "months_active"]
             _month_cols = [c for c in _matrix_df.columns if c not in _meta_cols]
 
+            # ── CSS: make checked data-editor checkboxes visually distinct ──────
+            st.markdown("""
+<style>
+/* Blue accent for ticked month-column checkboxes in the timeline matrix */
+[data-testid="stDataEditor"] .ag-cell [data-testid="glideCell-1-4"],
+[data-testid="stDataEditor"] .ag-checkbox-cell-renderer .ag-icon-checkbox-checked {
+    color: #0ea5e9 !important;
+}
+[data-testid="stDataEditor"] .ag-checkbox-cell-renderer .ag-icon-checkbox-checked::before {
+    color: #0ea5e9 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
             # ── Matrix guide banner ───────────────────────────────────────────
             st.info(T("timeline_matrix_guide"))
-            st.caption(T("timeline_matrix_legend"))
+
+            # ── Colour-coded legend ───────────────────────────────────────────
+            st.markdown(
+                f"""<div style="font-size:0.85rem;margin-bottom:4px;">
+<span style="display:inline-block;background:#0ea5e9;color:#fff;
+      border-radius:4px;padding:1px 7px;margin-right:6px;">🔵</span>
+<strong>{T('timeline_matrix_legend_anchor')}</strong>
+&nbsp;&nbsp;
+<span style="display:inline-block;border:1px solid #94a3b8;border-radius:4px;
+      padding:1px 7px;margin-right:6px;">☐</span>
+<span style="color:#64748b;">{T('timeline_matrix_legend_optional')}</span>
+&nbsp;&nbsp;
+<span style="display:inline-block;background:#22c55e;color:#fff;
+      border-radius:4px;padding:1px 7px;margin-right:6px;">✅</span>
+<strong>{T('timeline_matrix_legend_checked')}</strong>
+</div>""",
+                unsafe_allow_html=True,
+            )
 
             # ── Column configuration ──────────────────────────────────────────
             _col_config = {
@@ -599,27 +779,46 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
             st.session_state["_tl_month_cols"]    = _month_cols
 
             # Download the matrix as CSV
+            _pfx_mat = st.session_state.get("export_prefix", "virsift") or "virsift"
             _dl1, _dl2 = st.columns(2)
             with _dl1:
                 st.download_button(
                     label=T("timeline_download_matrix_csv"),
                     data=edited.to_csv(index=False).encode("utf-8"),
-                    file_name=f"timeline_matrix_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    file_name=f"{_pfx_mat}_timeline_matrix.csv",
                     mime="text/csv",
                     use_container_width=True,
+                    help=f"📄 {_pfx_mat}_timeline_matrix.csv · rename prefix in sidebar",
                 )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PHASE 4 — Impact Preview & Export
 # ─────────────────────────────────────────────────────────────────────────────
-with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=False):
+_matrix_is_ready = "_tl_matrix_df" in st.session_state
+_has_seq_col     = "sequence" in _display_df.columns
 
-    if "sequence" not in _display_df.columns:
+with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=True):
+
+    # ── Smart contextual hint before the button ──────────────────────────────
+    if not _has_seq_col:
         st.warning(T("timeline_no_sequence_for_extraction"))
-    elif "_tl_matrix_df" not in st.session_state:
+    elif not _matrix_is_ready:
         st.info(T("timeline_configure_matrix_first"))
-    else:
-        if st.button(T("timeline_generate_preview_btn"), type="secondary", key="tl_preview_btn"):
+        st.caption(T("timeline_preview_do_steps_first"))
+
+    # Button is always rendered — disabled (grey) when matrix isn't ready,
+    # so users can see it exists and understand what they need to do first.
+    _btn_disabled = not (_has_seq_col and _matrix_is_ready)
+    if st.button(
+        T("timeline_generate_preview_btn"),
+        type="secondary" if _btn_disabled else "primary",
+        key="tl_preview_btn",
+        disabled=_btn_disabled,
+        use_container_width=True,
+        help=(T("timeline_preview_do_steps_first") if _btn_disabled
+              else T("timeline_generate_preview_btn")),
+    ):
+        if True:  # indentation block to match original code structure
 
             matrix_df  = st.session_state["_tl_matrix_df"]
             edited_mat = st.session_state.get("_tl_edited_matrix", pd.DataFrame())
@@ -675,6 +874,14 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=False):
                                 if _max_opt == T("timeline_maxall"):
                                     # All occurrences in this month
                                     selected_seqs.append(month_seqs)
+                                elif _max_opt == T("timeline_maxn"):
+                                    # Custom N: take the N earliest-collected sequences
+                                    _custom_n = int(st.session_state.get("tl_max_n_custom", 5))
+                                    try:
+                                        _ms_sorted = month_seqs.sort_values("collection_date")
+                                    except Exception:
+                                        _ms_sorted = month_seqs
+                                    selected_seqs.append(_ms_sorted.head(_custom_n))
                                 elif _max_opt == T("timeline_max2") and len(month_seqs) >= 2:
                                     # First + Last within the month
                                     try:
@@ -799,6 +1006,7 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=False):
 
                 # Export buttons
                 st.divider()
+                _pfx_ex = st.session_state.get("export_prefix", "virsift") or "virsift"
                 ex1, ex2, ex3 = st.columns(3)
 
                 with ex1:
@@ -818,11 +1026,11 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=False):
                     st.download_button(
                         label=T("download_fasta_label", count=len(result_df)),
                         data=fasta_out,
-                        file_name=f"timeline_curated_{datetime.now().strftime('%Y%m%d_%H%M')}.fasta",
+                        file_name=f"{_pfx_ex}_timeline_curated.fasta",
                         mime="text/plain",
                         type="primary",
                         use_container_width=True,
-                        help=T("download_tooltip_fasta"),
+                        help=f"📄 {_pfx_ex}_timeline_curated.fasta · rename prefix in sidebar",
                     )
 
                 with ex2:
@@ -831,10 +1039,10 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=False):
                     st.download_button(
                         label=T("download_csv_label"),
                         data=result_df[meta_cols].to_csv(index=False).encode("utf-8"),
-                        file_name=f"timeline_metadata_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                        file_name=f"{_pfx_ex}_timeline_metadata.csv",
                         mime="text/csv",
                         use_container_width=True,
-                        help=T("download_tooltip_csv"),
+                        help=f"📄 {_pfx_ex}_timeline_metadata.csv · rename prefix in sidebar",
                     )
 
                 with ex3:
@@ -851,9 +1059,10 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=False):
                     st.download_button(
                         label=T("download_json_label"),
                         data=json.dumps(snapshot, indent=2, ensure_ascii=False).encode("utf-8"),
-                        file_name=f"timeline_methodology_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
+                        file_name=f"{_pfx_ex}_timeline_methodology.json",
                         mime="application/json",
                         use_container_width=True,
+                        help=f"📄 {_pfx_ex}_timeline_methodology.json · rename prefix in sidebar",
                     )
             else:
                 st.warning(T("timeline_no_months_selected"))

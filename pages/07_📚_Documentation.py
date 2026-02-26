@@ -468,7 +468,7 @@ with tab_tips:
 with tab_hdr:
     st.markdown(_HEADER_FORMAT.get(_lang, _HEADER_FORMAT["en"]))
 
-    _pdf_path = "1 FASTA Header Format Guide - Complete Reference.pdf"
+    _pdf_path = os.path.join("cases", "1 FASTA Header Format Guide - Complete Reference.pdf")
     if os.path.exists(_pdf_path):
         with open(_pdf_path, "rb") as _pdf_f:
             st.download_button(
@@ -478,6 +478,8 @@ with tab_hdr:
                 mime="application/pdf",
                 use_container_width=False,
             )
+    else:
+        st.caption(T("docs_download_pdf_missing"))
 
     # ── Test datasets section ────────────────────────────────────────────────
     st.divider()
@@ -529,7 +531,10 @@ with tab_uc:
     st.markdown(f"### {T('docs_usecase_header')}")
     st.caption(T("docs_usecase_caption"))
 
-    _uc_path = os.path.join("cases", "usecase.md")
+    _uc_file = "usecase_ru.md" if _lang == "ru" else "usecase.md"
+    _uc_path = os.path.join("cases", _uc_file)
+    if not os.path.exists(_uc_path):  # Fallback to English if Russian not present
+        _uc_path = os.path.join("cases", "usecase.md")
     if os.path.exists(_uc_path):
         with open(_uc_path, encoding="utf-8") as _uc_f:
             _uc_content = _uc_f.read()

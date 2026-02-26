@@ -98,23 +98,80 @@ else:
     st.divider()
     st.subheader(T("workspace_loaded_files"))
 
-    # Build summary table
-    summary = pd.DataFrame([
-        {
-            "File":       rf["name"],
-            "Sequences":  f"{rf['n_sequences']:,}",
-            "Parse Time": f"{rf['parse_time']:.2f}s",
+    # ── Build enhanced per-file stats table ──────────────────────────────────
+    def _file_row(rf: dict) -> dict:
+        """Return a stats dict for one raw file entry."""
+        mini = pd.DataFrame(rf["parsed"])
+        n    = rf["n_sequences"]
+        # Date range
+        date_str = "—"
+        if "collection_date" in mini.columns:
+            dates = pd.to_datetime(mini["collection_date"], errors="coerce").dropna()
+            if not dates.empty:
+                date_str = f"{dates.min().strftime('%Y-%m')} → {dates.max().strftime('%Y-%m')}"
+        # Unique subtypes
+        n_sub = mini["subtype_clean"].nunique() if "subtype_clean" in mini.columns else "—"
+        # Unique segments
+        n_seg = mini["segment"].nunique() if "segment" in mini.columns else "—"
+        return {
+            "File":                       rf["name"],
+            T("sidebar_active_seqs"):     f"{n:,}",
+            T("workspace_file_subtypes"): n_sub,
+            T("workspace_file_segments"): n_seg,
+            T("workspace_file_date_range"): date_str,
+            "Parse (s)":                  f"{rf['parse_time']:.2f}",
         }
-        for rf in raw_files
-    ])
+
+    summary = pd.DataFrame([_file_row(rf) for rf in raw_files])
     st.dataframe(summary, use_container_width=True, hide_index=True)
 
-    # File selection for activation / merge
     file_names = [rf["name"] for rf in raw_files]
+
+    # ── Batch quick-action row ────────────────────────────────────────────────
+    _bq1, _bq2, _bq3 = st.columns([1, 1, 2])
+
+    with _bq1:
+        if st.button(T("workspace_select_all"), use_container_width=True,
+                     key="ws_sel_all_btn"):
+            st.session_state["ws_file_multiselect"] = file_names
+            st.rerun()
+
+    with _bq2:
+        if st.button(T("workspace_clear_sel"), use_container_width=True,
+                     key="ws_clr_btn"):
+            st.session_state["ws_file_multiselect"] = []
+            st.rerun()
+
+    with _bq3:
+        if st.button(
+            T("workspace_activate_all_btn", n=len(raw_files)),
+            type="primary",
+            use_container_width=True,
+            key="ws_activate_all_btn",
+            help="Merges every loaded file into one active dataset without needing a selection.",
+        ):
+            with st.spinner(T("workspace_building_df")):
+                dfs = [pd.DataFrame(rf["parsed"]) for rf in raw_files]
+                merged = pd.concat(dfs, ignore_index=True)
+            # THE ONLY PLACE active_df IS WRITTEN
+            st.session_state["active_df"] = merged
+            st.session_state["filtered_df"] = pd.DataFrame()
+            st.session_state["action_logs"].append({
+                "action":    "activate",
+                "files":     file_names,
+                "sequences": len(merged),
+                "timestamp": pd.Timestamp.now().isoformat(),
+            })
+            st.success(T("workspace_activated_success",
+                         n=len(merged), files=len(raw_files)))
+            st.rerun()
+
+    # ── File selection for activation / merge ────────────────────────────────
     selected = st.multiselect(
         T("workspace_select_activate"),
         options=file_names,
         default=file_names[:1] if file_names else [],
+        key="ws_file_multiselect",
     )
 
     col_activate, col_remove = st.columns([3, 1])
@@ -125,7 +182,7 @@ else:
             T("upload_activate_button") if len(selected) == 1
             else T("upload_merge_button")
         )
-        if st.button(activate_label, type="primary",
+        if st.button(activate_label, type="secondary",
                      disabled=not selected, use_container_width=True):
             selected_parsed = [
                 rf["parsed"] for rf in raw_files if rf["name"] in selected

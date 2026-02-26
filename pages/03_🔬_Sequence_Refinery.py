@@ -52,25 +52,27 @@ def _download_row(df: pd.DataFrame, label_prefix: str) -> None:
     """Render primary FASTA + secondary CSV download buttons side-by-side."""
     if df.empty:
         return
+    _pfx = st.session_state.get("export_prefix", "virsift") or "virsift"
+    _slug = label_prefix.lower().replace(" ", "_")
     c1, c2 = st.columns(2)
     fasta_str = convert_df_to_fasta(df)
     c1.download_button(
         label=f"⬇ {label_prefix} — FASTA ({len(df):,} seqs)",
         data=fasta_str.encode("utf-8"),
-        file_name=f"virsift_{label_prefix.lower().replace(' ', '_')}.fasta",
+        file_name=f"{_pfx}_{_slug}.fasta",
         mime="text/plain",
         type="primary",
         use_container_width=True,
-        help=T("download_fasta_help"),
+        help=f"📄 {_pfx}_{_slug}.fasta · rename prefix in sidebar",
     )
     csv_bytes = df.drop(columns=["sequence"], errors="ignore").to_csv(index=False).encode("utf-8")
     c2.download_button(
         label=f"⬇ {label_prefix} — CSV ({len(df):,} rows)",
         data=csv_bytes,
-        file_name=f"virsift_{label_prefix.lower().replace(' ', '_')}.csv",
+        file_name=f"{_pfx}_{_slug}.csv",
         mime="text/csv",
         use_container_width=True,
-        help=T("download_csv_help"),
+        help=f"📄 {_pfx}_{_slug}.csv · rename prefix in sidebar",
     )
 
 
@@ -533,7 +535,7 @@ if not filtered_df.empty:
         st.download_button(
             label=T("download_methodology_label"),
             data=json.dumps(methodology, indent=2, default=str).encode("utf-8"),
-            file_name="virsift_methodology.json",
+            file_name=f"{st.session_state.get('export_prefix', 'virsift') or 'virsift'}_methodology.json",
             mime="application/json",
             help=T("download_methodology_help"),
         )
@@ -566,7 +568,7 @@ with st.sidebar:
         st.download_button(
             label=T("sidebar_fl_download", n=len(_fl_filtered)),
             data=_fl_fasta.encode("utf-8") if isinstance(_fl_fasta, str) else _fl_fasta,
-            file_name=f"virsift_filtered_{pd.Timestamp.now().strftime('%Y%m%d_%H%M')}.fasta",
+            file_name=f"{st.session_state.get('export_prefix', 'virsift') or 'virsift'}_filtered.fasta",
             mime="text/plain",
             use_container_width=True,
             type="primary",

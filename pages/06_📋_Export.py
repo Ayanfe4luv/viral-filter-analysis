@@ -38,14 +38,18 @@ st.caption(
 )
 st.divider()
 
+# ── Filename prefix (mirrors sidebar control) ─────────────────────────────────
+_pfx = st.session_state.get("export_prefix", "virsift") or "virsift"
+st.caption(
+    f"📁 **{T('sidebar_export_prefix_label')}:** `{_pfx}` "
+    f"— {T('sidebar_export_prefix_help')}"
+)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SECTION 1 — Quick Downloads
 # ─────────────────────────────────────────────────────────────────────────────
 st.subheader(f"⬇ {T('export_quick_header')}")
 st.caption(T("export_quick_caption"))
-
-ts = pd.Timestamp.now().strftime("%Y%m%d_%H%M")
 
 q1, q2, q3, q4 = st.columns(4)
 
@@ -55,11 +59,11 @@ with q1:
     st.download_button(
         label=T("export_fasta_btn", n=f"{len(_export_df):,}"),
         data=fasta_str.encode("utf-8"),
-        file_name=f"virsift_{ts}.fasta",
+        file_name=f"{_pfx}_sequences.fasta",
         mime="text/plain",
         type="primary",
         use_container_width=True,
-        help=T("download_tooltip_fasta"),
+        help=f"📄 {_pfx}_sequences.fasta · rename prefix in sidebar",
     )
 
 # — CSV (metadata, no sequence)
@@ -72,10 +76,10 @@ with q2:
     st.download_button(
         label=T("export_csv_btn", n=f"{len(_export_df):,}"),
         data=csv_bytes,
-        file_name=f"virsift_metadata_{ts}.csv",
+        file_name=f"{_pfx}_metadata.csv",
         mime="text/csv",
         use_container_width=True,
-        help=T("download_tooltip_csv"),
+        help=f"📄 {_pfx}_metadata.csv · rename prefix in sidebar",
     )
 
 # — Methodology JSON
@@ -83,7 +87,7 @@ with q3:
     action_logs = st.session_state.get("action_logs", [])
     methodology = {
         "tool":       "Vir-Seq-Sift v2.1",
-        "exported":   ts,
+        "prefix":     _pfx,
         "source":     _src_label,
         "sequences":  len(_export_df),
         "operations": action_logs,
@@ -92,40 +96,141 @@ with q3:
     st.download_button(
         label=T("export_json_btn"),
         data=json.dumps(methodology, indent=2, default=str).encode("utf-8"),
-        file_name=f"virsift_methodology_{ts}.json",
+        file_name=f"{_pfx}_methodology.json",
         mime="application/json",
         use_container_width=True,
-        help=T("download_tooltip_json"),
+        help=f"📄 {_pfx}_methodology.json · rename prefix in sidebar",
     )
 
 # — ZIP Bundle (FASTA + CSV + JSON)
 with q4:
     @st.cache_data(show_spinner=False)
     def _make_bundle(fasta: str, csv: bytes, meta_json: str,
-                     ts_key: str) -> bytes:  # noqa: ARG001
+                     pfx_key: str) -> bytes:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-            zf.writestr(f"virsift_{ts_key}.fasta",            fasta.encode("utf-8"))
-            zf.writestr(f"virsift_metadata_{ts_key}.csv",     csv)
-            zf.writestr(f"virsift_methodology_{ts_key}.json", meta_json.encode("utf-8"))
+            zf.writestr(f"{pfx_key}_sequences.fasta",   fasta.encode("utf-8"))
+            zf.writestr(f"{pfx_key}_metadata.csv",      csv)
+            zf.writestr(f"{pfx_key}_methodology.json",  meta_json.encode("utf-8"))
         buf.seek(0)
         return buf.getvalue()
 
     bundle = _make_bundle(
         fasta_str, csv_bytes,
         json.dumps(methodology, indent=2, default=str),
-        ts,
+        _pfx,
     )
     st.download_button(
         label=T("export_bundle_zip_btn"),
         data=bundle,
-        file_name=f"virsift_bundle_{ts}.zip",
+        file_name=f"{_pfx}_bundle.zip",
         mime="application/zip",
         use_container_width=True,
-        help=T("download_tooltip_zip"),
+        help=f"📄 {_pfx}_bundle.zip (FASTA + CSV + JSON) · rename prefix in sidebar",
     )
 
 st.divider()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 1b — Per-File Downloads (shown when multiple source files loaded)
+# ─────────────────────────────────────────────────────────────────────────────
+_raw_files_ex = st.session_state.get("raw_files", [])
+_act_logs_ex  = st.session_state.get("action_logs", [])
+_last_act_ex  = next(
+    (lg for lg in reversed(_act_logs_ex) if lg.get("action") == "activate"),
+    None,
+)
+_act_names_ex = _last_act_ex.get("files", []) if _last_act_ex else []
+_contrib_ex   = [rf for rf in _raw_files_ex if rf["name"] in _act_names_ex]
+
+if len(_contrib_ex) > 1:
+    st.subheader(f"📂 {T('export_per_file_header')}")
+    st.caption(T("export_per_file_caption"))
+
+    import re as _re_ex
+
+    for _pf_rf in _contrib_ex:
+        _pf_df    = pd.DataFrame(_pf_rf["parsed"])
+        _pf_n     = _pf_rf["n_sequences"]
+        _pf_safe  = _re_ex.sub(r"[^\w\-]", "_", _pf_rf["name"])[:40]
+        _pf_label = _pf_rf["name"][:55] + ("…" if len(_pf_rf["name"]) > 55 else "")
+
+        _pf_c0, _pf_c1, _pf_c2 = st.columns([3, 1, 1])
+        _pf_c0.markdown(f"**{_pf_label}** — {_pf_n:,} seqs")
+
+        with _pf_c1:
+            try:
+                _pf_fasta = convert_df_to_fasta(_pf_df)
+            except Exception:
+                _lines = []
+                for _, _r in _pf_df.iterrows():
+                    _lines.append(f">{_r.get('isolate', _r.get('sequence_hash', 'seq'))}")
+                    _lines.append(str(_r.get("sequence", "")))
+                _pf_fasta = "\n".join(_lines)
+            st.download_button(
+                label=T("export_per_file_fasta"),
+                data=_pf_fasta.encode("utf-8") if isinstance(_pf_fasta, str) else _pf_fasta,
+                file_name=f"{_pfx}_{_pf_safe}.fasta",
+                mime="text/plain",
+                use_container_width=True,
+                key=f"dl_pf_fasta_{_pf_safe}",
+                help=f"📄 {_pfx}_{_pf_safe}.fasta",
+            )
+
+        with _pf_c2:
+            _pf_csv = (
+                _pf_df.drop(columns=["sequence"], errors="ignore")
+                .to_csv(index=False)
+                .encode("utf-8")
+            )
+            st.download_button(
+                label=T("export_per_file_csv"),
+                data=_pf_csv,
+                file_name=f"{_pfx}_{_pf_safe}_meta.csv",
+                mime="text/csv",
+                use_container_width=True,
+                key=f"dl_pf_csv_{_pf_safe}",
+                help=f"📄 {_pfx}_{_pf_safe}_meta.csv",
+            )
+
+    # Zip of all source files
+    _pf_zip_col, _ = st.columns([2, 3])
+    with _pf_zip_col:
+        if st.button(
+            T("export_per_file_zip_btn", n=len(_contrib_ex)),
+            use_container_width=True,
+            key="dl_pf_zip_all",
+        ):
+            with st.spinner("Building ZIP…"):
+                _pf_zbuf = io.BytesIO()
+                with zipfile.ZipFile(_pf_zbuf, "w", zipfile.ZIP_DEFLATED) as _pf_zf:
+                    for _zrf in _contrib_ex:
+                        _z_df   = pd.DataFrame(_zrf["parsed"])
+                        _z_safe = _re_ex.sub(r"[^\w\-]", "_", _zrf["name"])[:40]
+                        try:
+                            _z_fa = convert_df_to_fasta(_z_df)
+                        except Exception:
+                            _zl = []
+                            for _, _r in _z_df.iterrows():
+                                _zl.append(f">{_r.get('isolate', 'seq')}")
+                                _zl.append(str(_r.get("sequence", "")))
+                            _z_fa = "\n".join(_zl)
+                        _pf_zf.writestr(
+                            f"{_pfx}_{_z_safe}.fasta",
+                            _z_fa.encode("utf-8") if isinstance(_z_fa, str) else _z_fa,
+                        )
+                _pf_zbuf.seek(0)
+                st.download_button(
+                    label=f"⬇ {_pfx}_source_files.zip",
+                    data=_pf_zbuf.getvalue(),
+                    file_name=f"{_pfx}_source_files.zip",
+                    mime="application/zip",
+                    use_container_width=True,
+                    key="dl_pf_zip_dl",
+                )
+
+    st.divider()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -239,13 +344,15 @@ if "split_summary" in st.session_state:
                             content.encode("utf-8"),
                         )
                 zip_buf.seek(0)
+                _split_zip_name = f"{_pfx}_split_by_{st.session_state['split_label']}.zip"
                 st.download_button(
                     label=T("export_split_download_zip", n=n_groups),
                     data=zip_buf.getvalue(),
-                    file_name=f"split_by_{st.session_state['split_label']}_{ts}.zip",
+                    file_name=_split_zip_name,
                     mime="application/zip",
                     use_container_width=True,
                     key="dl_split_zip",
+                    help=f"📄 {_split_zip_name} · rename prefix in sidebar",
                 )
                 st.success(T("export_split_zip_success", n=n_groups))
 
@@ -261,13 +368,15 @@ if "split_summary" in st.session_state:
             n_g   = len(grp)
             disp  = str(key)[:28] + "…" if len(str(key)) > 28 else str(key)
             fasta_g = convert_df_to_fasta(grp)
+            _grp_fname = f"{_pfx}_{st.session_state['split_label']}_{safe}.fasta"
             st.download_button(
                 label=f"📄 {disp}  ({n_g} seqs)",
                 data=fasta_g.encode("utf-8"),
-                file_name=f"{st.session_state['split_label']}_{safe}.fasta",
+                file_name=_grp_fname,
                 mime="text/plain",
                 use_container_width=True,
                 key=f"dl_grp_{safe[:40]}",
+                help=f"📄 {_grp_fname} · rename prefix in sidebar",
             )
         if n_groups > 5:
             st.caption(T("export_split_more", extra=n_groups - 5))
@@ -304,10 +413,10 @@ with st.expander(f"🔑 {T('export_accession_header')}"):
         st.download_button(
             label=T("export_accession_btn", n=len(acc_series)),
             data=acc_text.encode("utf-8"),
-            file_name=f"virsift_accessions_{ts}.txt",
+            file_name=f"{_pfx}_accessions.txt",
             mime="text/plain",
             use_container_width=True,
-            help=T("export_accession_help"),
+            help=f"📄 {_pfx}_accessions.txt · rename prefix in sidebar",
         )
     else:
         st.info("No accession column found in this dataset.")
@@ -348,19 +457,19 @@ with st.expander(f"📋 {T('export_log_header')}"):
             st.download_button(
                 label=T("export_log_csv_btn"),
                 data=_raw_log_df.to_csv(index=False).encode("utf-8"),
-                file_name=f"virsift_log_{ts}.csv",
+                file_name=f"{_pfx}_log.csv",
                 mime="text/csv",
                 use_container_width=True,
-                help=T("export_log_tooltip"),
+                help=f"📄 {_pfx}_log.csv · rename prefix in sidebar",
             )
         with dl2:
             st.download_button(
                 label=T("export_log_json_btn"),
                 data=json.dumps(logs, indent=2, default=str).encode("utf-8"),
-                file_name=f"virsift_log_{ts}.json",
+                file_name=f"{_pfx}_log.json",
                 mime="application/json",
                 use_container_width=True,
-                help=T("export_log_tooltip"),
+                help=f"📄 {_pfx}_log.json · rename prefix in sidebar",
             )
     else:
         st.info(T("export_no_ops_logged"))

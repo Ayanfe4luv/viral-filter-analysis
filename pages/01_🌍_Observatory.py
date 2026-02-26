@@ -233,9 +233,7 @@ if _active_df.empty:
                         margin-bottom:.5rem;">🫁 {T('welcome_hrsv_format_label')}</div>
             <code style="font-size:.72rem; color:#0369a1; background:rgba(255,255,255,.6);
                          padding:.3rem .5rem; border-radius:4px; display:block;
-                         word-break:break-all; line-height:1.6;">
-                &gt;Isolate_Name|GISAID_Accession|Collection_Date
-            </code>
+                         word-break:break-all; line-height:1.6; white-space:normal;">&#62;Isolate_Name|GISAID_Accession|Collection_Date</code>
         </div>
         <div style="flex:1; min-width:260px; max-width:420px;
                     background:#ecfdf5; border-left:4px solid #059669;
@@ -244,9 +242,7 @@ if _active_df.empty:
                         margin-bottom:.5rem;">🐦 {T('welcome_flu_format_label')}</div>
             <code style="font-size:.67rem; color:#065f46; background:rgba(255,255,255,.6);
                          padding:.3rem .5rem; border-radius:4px; display:block;
-                         word-break:break-all; line-height:1.6;">
-                &gt;Isolate_Name|Virus_Type/Subtype|Gene_Segment|Collection_Date|GISAID_Accession|Clade
-            </code>
+                         word-break:break-all; line-height:1.6; white-space:normal;">&#62;Isolate_Name|Virus_Type/Subtype|Gene_Segment|Collection_Date|GISAID_Accession|Clade</code>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -373,6 +369,7 @@ with st.sidebar:
     _show_epi    = st.checkbox(T("sidebar_obs_epi"),     value=True, key="obs_show_epi")
     _show_locs   = st.checkbox(T("sidebar_obs_locs"),    value=True, key="obs_show_locs")
     _show_clades = st.checkbox(T("sidebar_obs_clades"),  value=True, key="obs_show_clades")
+    _show_batch  = st.checkbox(T("sidebar_obs_batch"),   value=True, key="obs_show_batch")
 
 # ── Row 1: Core KPIs ─────────────────────────────────────────────────────────
 if _show_kpis:
@@ -587,8 +584,103 @@ if _show_clades and _clade_col in _display_df.columns:
     except ImportError:
         st.dataframe(top_clade, use_container_width=True, hide_index=True)
 
-# ── Action log ────────────────────────────────────────────────────────────────
+# ── Batch Source Overview ─────────────────────────────────────────────────────
+_raw_files = st.session_state.get("raw_files", [])
 action_logs = st.session_state.get("action_logs", [])
+
+if _show_batch and len(_raw_files) > 0:
+    # Determine which files contributed to the current active_df
+    _last_act = next(
+        (lg for lg in reversed(action_logs) if lg.get("action") == "activate"),
+        None,
+    )
+    _active_file_names = (
+        _last_act.get("files", []) if _last_act else [_raw_files[0]["name"]]
+    )
+    _contributing = [rf for rf in _raw_files if rf["name"] in _active_file_names]
+
+    st.divider()
+    with st.expander(
+        f"📦 {T('obs_batch_header')} ({len(_contributing)} file{'s' if len(_contributing) != 1 else ''})",
+        expanded=len(_contributing) > 1,
+    ):
+        st.caption(T("obs_batch_caption", n=len(_contributing)))
+
+        _total_seqs = max(len(_active_df), 1)
+        _batch_rows = []
+        for rf in _contributing:
+            mini = pd.DataFrame(rf["parsed"])
+            n    = rf["n_sequences"]
+
+            # Date span
+            _dspan = "—"
+            if "collection_date" in mini.columns:
+                _d = pd.to_datetime(mini["collection_date"], errors="coerce").dropna()
+                if not _d.empty:
+                    _dspan = (
+                        f"{_d.min().strftime('%Y-%m')} → {_d.max().strftime('%Y-%m')}"
+                        f"  ({(_d.max()-_d.min()).days} d)"
+                    )
+
+            # Subtypes
+            _nsub = (
+                ", ".join(sorted(
+                    mini["subtype_clean"].dropna().astype(str).unique()
+                )[:5])
+                if "subtype_clean" in mini.columns else "—"
+            )
+            if "subtype_clean" in mini.columns and mini["subtype_clean"].nunique() > 5:
+                _nsub += f" +{mini['subtype_clean'].nunique()-5} more"
+
+            _batch_rows.append({
+                T("obs_batch_file"):    rf["name"],
+                T("sidebar_active_seqs"): f"{n:,}",
+                T("obs_batch_pct"):     f"{n/_total_seqs*100:.1f}%",
+                T("obs_batch_date_span"): _dspan,
+                T("workspace_file_subtypes"): _nsub,
+            })
+
+        if _batch_rows:
+            st.dataframe(
+                pd.DataFrame(_batch_rows),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+        # Bar chart: sequence count per file (when >1 file)
+        if len(_batch_rows) > 1:
+            try:
+                import plotly.express as _px_batch
+                _bc_df = pd.DataFrame([
+                    {"file": rf["name"], "n": rf["n_sequences"]}
+                    for rf in _contributing
+                ])
+                _fig_bc = _px_batch.bar(
+                    _bc_df, x="file", y="n",
+                    labels={"file": T("obs_batch_file"), "n": T("sidebar_active_seqs")},
+                    color="n", color_continuous_scale="Blues",
+                    height=220,
+                )
+                _fig_bc.update_layout(
+                    margin=dict(t=10, b=60, l=40, r=10),
+                    coloraxis_showscale=False,
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    xaxis_tickangle=-25,
+                )
+                st.plotly_chart(_fig_bc, use_container_width=True)
+            except Exception:
+                pass  # plotly not available — table already shown
+
+        if len(_contributing) < len(_raw_files):
+            _not_active = [rf["name"] for rf in _raw_files
+                           if rf["name"] not in _active_file_names]
+            st.caption(
+                f"⚠️ {len(_not_active)} loaded file(s) not in current dataset: "
+                + ", ".join(f"`{n}`" for n in _not_active[:3])
+                + (" …" if len(_not_active) > 3 else "")
+                + f" — go to 📁 Workspace to activate them."
+            )
 if action_logs:
     st.divider()
     _col_rename = {
