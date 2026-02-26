@@ -212,6 +212,7 @@ if _active_df.empty:
                 <li>{T('welcome_info_3')}</li>
                 <li>{T('welcome_info_4')}</li>
                 <li>{T('welcome_info_5')}</li>
+                <li>{T('welcome_info_batch')}</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)

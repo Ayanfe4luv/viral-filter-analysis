@@ -56,6 +56,38 @@ if _df.empty:
     st.warning(T("error_no_active_df"))
     st.stop()
 
+# ── Per-file scope selector (multi-file datasets only) ──────────────────────
+_an_raw_files: list = st.session_state.get("raw_files", [])
+_an_action_logs: list = st.session_state.get("action_logs", [])
+_an_last_act = next(
+    (lg for lg in reversed(_an_action_logs) if lg.get("action") == "activate"), None
+)
+_an_act_names: list = (
+    _an_last_act.get("files", []) if _an_last_act
+    else ([_an_raw_files[0]["name"]] if _an_raw_files else [])
+)
+_an_contrib = [rf for rf in _an_raw_files if rf["name"] in _an_act_names]
+
+if len(_an_contrib) > 1:
+    _an_scope_opts = [T("timeline_scope_all")] + [rf["name"] for rf in _an_contrib]
+    _an_scope = st.radio(
+        T("timeline_scope_label"),
+        options=_an_scope_opts,
+        index=st.session_state.get("an_scope_idx", 0),
+        horizontal=True,
+        key="an_file_scope",
+        help=T("timeline_scope_help"),
+    )
+    st.session_state["an_scope_idx"] = _an_scope_opts.index(_an_scope)
+    if _an_scope != T("timeline_scope_all"):
+        _an_rf = next(rf for rf in _an_contrib if rf["name"] == _an_scope)
+        _df = pd.DataFrame(_an_rf["parsed"])
+        _src = f"📁 {_an_scope[:30]}"
+        st.success(T("timeline_scope_file_badge", file=_an_scope, n=len(_df)))
+    else:
+        st.caption(T("timeline_scope_all_caption", n=len(_an_contrib)))
+    st.divider()
+
 st.caption(T("analytics_dataset_label", n=f"{len(_df):,}", src=_src))
 
 # ---------------------------------------------------------------------------
@@ -1142,6 +1174,10 @@ with st.sidebar:
     st.divider()
     st.markdown(f"**{T('sidebar_an_chart_type')}**")
     st.caption(chart_type_label)
+    # Show active file scope when a single source file is selected
+    _an_sb_scope = st.session_state.get("an_file_scope", T("timeline_scope_all"))
+    if _an_sb_scope and _an_sb_scope != T("timeline_scope_all"):
+        st.caption(f"📁 {_an_sb_scope[:28]}")
 
     cur_pal_sb = st.session_state.get("custom_palette")
     if cur_pal_sb:

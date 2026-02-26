@@ -77,6 +77,41 @@ def _download_row(df: pd.DataFrame, label_prefix: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Per-file scope selector (multi-file datasets only)
+# ---------------------------------------------------------------------------
+
+_ref_raw_files: list = st.session_state.get("raw_files", [])
+_ref_action_logs: list = st.session_state.get("action_logs", [])
+_ref_last_act = next(
+    (lg for lg in reversed(_ref_action_logs) if lg.get("action") == "activate"), None
+)
+_ref_act_names: list = (
+    _ref_last_act.get("files", []) if _ref_last_act
+    else ([_ref_raw_files[0]["name"]] if _ref_raw_files else [])
+)
+_ref_contrib = [rf for rf in _ref_raw_files if rf["name"] in _ref_act_names]
+
+if len(_ref_contrib) > 1:
+    _ref_scope_opts = [T("timeline_scope_all")] + [rf["name"] for rf in _ref_contrib]
+    _ref_scope = st.radio(
+        T("timeline_scope_label"),
+        options=_ref_scope_opts,
+        index=st.session_state.get("ref_scope_idx", 0),
+        horizontal=True,
+        key="ref_file_scope",
+        help=T("timeline_scope_help"),
+    )
+    st.session_state["ref_scope_idx"] = _ref_scope_opts.index(_ref_scope)
+    if _ref_scope != T("timeline_scope_all"):
+        _ref_rf = next(rf for rf in _ref_contrib if rf["name"] == _ref_scope)
+        _active_df = pd.DataFrame(_ref_rf["parsed"])
+        st.success(T("timeline_scope_file_badge", file=_ref_scope, n=len(_active_df)))
+    else:
+        st.caption(T("timeline_scope_all_caption", n=len(_ref_contrib)))
+    st.divider()
+
+
+# ---------------------------------------------------------------------------
 # Status banner
 # ---------------------------------------------------------------------------
 

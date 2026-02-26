@@ -29,9 +29,13 @@ your `.fasta`, `.fa`, `.fas`, `.fna`, `.txt`, or `.gz` file, then wait
 for the success banner. Your file is now in the session.
 
 ### Step 2 — ✅ Activate the Dataset
-Scroll down to **Loaded Datasets**. Select your file in the multi-select box,
-then click **Activate Selected Files**. The sidebar Quick Stats will update.
+Scroll down to **Loaded Datasets**. A stats table shows each file's sequence
+count, subtypes, segments and date span. Click **⚡ Activate All** to merge
+all files at once, or select specific files and click **Activate Selected**.
 > **Nothing works until you activate.**
+> **Multiple files merged?** Sequence Refinery, Analytics and Molecular
+> Timeline each show a **📁 File Scope** selector — switch to any single
+> source file for focused per-file analysis without re-uploading.
 
 ### Step 3 — 🔬 Filter & Refine
 Go to **Sequence Refinery**. Use the quality sliders (min/max length, N-run),
@@ -42,7 +46,9 @@ Sampler to get a representative phylogenetic subset.
 Open **Analytics** for 10+ chart types (distribution, temporal, stacked,
 epidemic curve, sunburst, treemap, violin, bubble, parallel, Gantt). Use the
 **Palette Studio** to customise colours. Visit **Molecular Timeline** for
-clone-persistence and overwintering analysis.
+clone-persistence and overwintering analysis. All three analysis pages show
+a **📁 File Scope** selector when multiple source files are active — pick
+any file to narrow every chart and filter to that file only.
 
 ### Step 5 — 📋 Export
 Go to **Export** to download the final FASTA, a CSV of metadata, a
@@ -56,9 +62,14 @@ create one FASTA file per subtype / clade / host automatically.
 файл, дождитесь зелёного баннера успеха.
 
 ### Шаг 2 — ✅ Активируйте набор данных
-Прокрутите до раздела **Загруженные наборы**. Выберите файл в списке,
-нажмите **Активировать выбранные файлы**. Панель статистики обновится.
+Прокрутите до раздела **Загруженные наборы**. Таблица показывает для
+каждого файла количество последовательностей, субтипы, сегменты и диапазон
+дат. Нажмите **⚡ Активировать все** для слияния сразу, или выберите
+конкретные файлы и нажмите **Активировать выбранные**.
 > **Без активации ничего не работает.**
+> **Объединено несколько файлов?** Очиститель, Аналитика и Молекулярная
+> шкала показывают селектор **📁 Scope** — переключайтесь на любой
+> исходный файл для анализа по отдельности.
 
 ### Шаг 3 — 🔬 Фильтрация и уточнение
 Перейдите в **Очиститель последовательностей**. Используйте ползунки качества
@@ -68,7 +79,9 @@ create one FASTA file per subtype / clade / host automatically.
 ### Шаг 4 — 📊 Анализ и визуализация
 Откройте **Аналитику** для 10+ типов диаграмм. Используйте **Студию палитры**
 для настройки цветов. В **Молекулярной временной шкале** — анализ устойчивости
-клонов и зимовки.
+клонов и зимовки. При наличии нескольких исходных файлов все три страницы
+анализа показывают селектор **📁 Scope** — выберите файл для фокусировки
+всех графиков и фильтров.
 
 ### Шаг 5 — 📋 Экспорт
 Перейдите в **Экспорт** для скачивания итогового FASTA, CSV с метаданными,
@@ -81,20 +94,20 @@ _FEATURE_TABLE = {
     "en": """\
 | Page | Key Actions | Notes |
 |------|-------------|-------|
-| **📁 Workspace** | File upload, URL download, Google Drive, activate, merge | Activate before any other step |
-| **🔬 Sequence Refinery** | Min/max length, N-run filter, deduplication, subtype/clade/date/host/location filters, HITL Smart Sampler | Filtered results flow to all pages |
-| **🧬 Molecular Timeline** | Clone persistence matrix, per-month representative selection, dataset diagnostics, methodology snapshot | Needs `sequence_hash` column |
-| **📊 Analytics** | 10+ chart types, custom palettes, dataset-overview gauges (count, avg length, completeness) | Use Palette Studio for custom colours |
-| **📋 Export** | FASTA, CSV, JSON, ZIP bundle, accession list (.txt), session log, split-by-group export | Always export before closing the browser |
+| **📁 Workspace** | File upload, URL download, Google Drive; per-file stats table (subtypes, segments, date span); Select All / ⚡ Activate All; merge | Activate before any other step; multiple files merged at once |
+| **🔬 Sequence Refinery** | Min/max length, N-run filter, dedup, subtype/clade/date/host/location filters, HITL Smart Sampler; **📁 per-file scope** | Scope selector focuses all filters on one source file |
+| **🧬 Molecular Timeline** | Clone persistence matrix, per-month representative selection, diagnostics, methodology snapshot; **📁 per-file scope** | Needs `sequence_hash`; scope analyses each file's clusters independently |
+| **📊 Analytics** | 10+ chart types, custom palettes, dataset-overview gauges (count, avg length, completeness); **📁 per-file scope** | Scope selector narrows all charts to one source file |
+| **📋 Export** | FASTA, CSV, JSON, ZIP bundle, accession list (.txt), session log, split-by-group export; per-source-file downloads | Always export before closing the browser |
 """,
     "ru": """\
 | Страница | Ключевые действия | Примечания |
 |----------|-------------------|-----------|
-| **📁 Рабочее пространство** | Загрузка файла, URL, Google Drive, активация, слияние | Сначала активируйте |
-| **🔬 Очиститель последовательностей** | Мин./макс. длина, N-серии, дедупликация, фильтры по субтипу / кладу / дате / хозяину, сэмплер HITL | Результаты отражаются на всех страницах |
-| **🧬 Молекулярная временная шкала** | Матрица устойчивости клонов, представители по месяцам, диагностика датасета | Нужен столбец `sequence_hash` |
-| **📊 Аналитика** | 10+ типов диаграмм, палитры, датасет-метрики (количество, средняя длина, полнота) | Студия палитры — создание собственных цветов |
-| **📋 Экспорт** | FASTA, CSV, JSON, ZIP, список аккессий (.txt), журнал сессии, экспорт по группам | Обязательно экспортируйте перед закрытием браузера |
+| **📁 Рабочее пространство** | Загрузка файла, URL, Google Drive; таблица статистики по файлам; Выбрать всё / ⚡ Активировать всё; слияние | Сначала активируйте; несколько файлов объединяются сразу |
+| **🔬 Очиститель последовательностей** | Мин./макс. длина, N-серии, дедупликация, фильтры по субтипу/кладу/дате/хозяину, сэмплер HITL; **📁 scope по файлу** | Scope фокусирует все фильтры на одном исходном файле |
+| **🧬 Молекулярная временная шкала** | Матрица устойчивости клонов, представители по месяцам, диагностика; **📁 scope по файлу** | Нужен `sequence_hash`; scope анализирует кластеры каждого файла отдельно |
+| **📊 Аналитика** | 10+ типов диаграмм, палитры, датасет-метрики; **📁 scope по файлу** | Scope сужает все графики до одного исходного файла |
+| **📋 Экспорт** | FASTA, CSV, JSON, ZIP, список аккессий (.txt), журнал сессии, экспорт по группам; загрузка по исходным файлам | Обязательно экспортируйте перед закрытием браузера |
 """,
 }
 
@@ -110,6 +123,7 @@ _TIPS_FAQ = {
 | **Session Data** | All work lives in your browser session and is lost on tab close or refresh. Use the Export page to save your results *before* closing. |
 | **Filtered vs Active** | Most pages prefer the *filtered* dataset if one exists, falling back to the full *active* dataset. The source label shows which is in use. |
 | **Language Toggle** | Switch between English and Russian at any time from the sidebar — all labels, buttons, and charts update immediately. |
+| **Batch Multi-File** | Upload several FASTA files and click **⚡ Activate All** to merge them instantly. Once merged, Sequence Refinery, Analytics and Molecular Timeline all display a **📁 File Scope** radio at the top — switch to any source file to analyse it independently, then back to *All files (merged)* for the full view. |
 
 ---
 
@@ -130,6 +144,13 @@ _TIPS_FAQ = {
 **Q: How do I export per-subtype FASTA files?**
 > In the Export page, open *Split & Export*, select **Subtype** as the split field, click *Preview Groups*, then download the ZIP of all sub-FASTAs.
 
+**Q: I merged 3 files but want to see each file's clusters / charts separately.**
+> In **Molecular Timeline**, **Analytics**, or **Sequence Refinery**, look for the
+> **📁 File Scope** radio selector near the top of the page (only shown when
+> multiple source files are active). Select any source file to narrow all charts,
+> filters, and matrices to that file's sequences. Choose *All files (merged)* to
+> restore the combined dataset view.
+
 **Q: Can I use VirSift offline?**
 > Yes — run `streamlit run app.py` locally after installing requirements. All processing is local; no sequences are ever uploaded to external servers.
 """,
@@ -144,6 +165,7 @@ _TIPS_FAQ = {
 | **Данные сессии** | Все данные хранятся в сессии браузера. Экспортируйте результаты *перед* закрытием вкладки. |
 | **Фильтрованный vs активный** | Большинство страниц используют фильтрованный датасет, если он существует, иначе — полный активный. |
 | **Переключение языка** | Переключайтесь между English и Русским в любое время из боковой панели. |
+| **Пакетная обработка файлов** | Загрузите несколько FASTA-файлов и нажмите **⚡ Активировать все** для мгновенного слияния. После слияния Очиститель, Аналитика и Молекулярная шкала показывают **📁 Scope** — выберите файл для анализа по отдельности. |
 
 ---
 
@@ -160,6 +182,12 @@ _TIPS_FAQ = {
 
 **В: Как экспортировать FASTA-файлы по субтипу?**
 > В Экспорте откройте *Разделить и экспортировать*, выберите **Субтип**, нажмите *Предпросмотр групп*, затем скачайте ZIP.
+
+**В: Я объединил 3 файла, но хочу видеть кластеры/графики каждого файла отдельно.**
+> В **Молекулярной шкале**, **Аналитике** или **Очистителе** найдите селектор
+> **📁 File Scope** в верхней части страницы (отображается только при нескольких
+> исходных файлах). Выберите нужный файл — все графики и фильтры сузятся до его
+> последовательностей. Вернитесь к *All files (merged)* для общего вида.
 
 **В: Как запустить VirSift локально?**
 > Установите зависимости (`pip install -r requirements.txt`) и запустите `streamlit run app.py`. Никакие данные не отправляются на внешние серверы.
