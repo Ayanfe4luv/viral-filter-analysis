@@ -1650,4 +1650,63 @@ Vir-Seq-Sift v2.1 supports influenza A (all subtypes including H5N1 avian), infl
 
 ---
 
-*End of 76 Use Cases — Vir-Seq-Sift v2.1 with HA_test_copy1.fasta*
+## Use Case 77: Upload Multiple Segment FASTA Files and Analyse Each Independently
+
+**Goal:** Upload HA, NA, and NP segment FASTA files separately, merge them into one active dataset, then use the File Scope selector to compare Timeline matrices for each segment without leaving the app.
+
+**Page:** Workspace → Molecular Timeline
+
+**Step-by-step:**
+1. Go to **Workspace (📁)**. Upload your three FASTA files — e.g., `HA_seqs.fasta`, `NA_seqs.fasta`, `NP_seqs.fasta`. Watch the per-file stats table update with sequence count, unique subtypes, unique segments and date range for each file.
+2. Click **⚡ Activate All (3 files merged)**. All three files are merged into one `active_df`. The sidebar shows "📦 3 source files merged".
+3. Navigate to **Molecular Timeline (🧬)**. At the top of the page, a **📁 File Scope** radio appears with four options: *All files (merged)*, *HA_seqs.fasta*, *NA_seqs.fasta*, *NP_seqs.fasta*.
+4. Select *HA_seqs.fasta*. The diagnostics, configuration, matrix and export phases all update to show only HA sequences. Build and export a timeline for HA.
+5. Return to the scope selector and switch to *NA_seqs.fasta*. The page immediately rescopes — build and export a separate NA timeline.
+6. Repeat for NP. You now have three segment-specific timelines from a single merged dataset without re-uploading anything.
+
+**Expected result:** Three downloadable FASTA files, each containing a molecularly curated subset of one gene segment.
+
+**Tip for beginners:** The File Scope selector is non-destructive — switching between files does not delete filtered results. It simply changes which source data the page operates on. The merged `active_df` is always preserved in session state.
+
+---
+
+## Use Case 78: Compare Subtype Distribution Across Source Files Using Analytics
+
+**Goal:** Use the Analytics page with per-file scope to generate side-by-side subtype distribution charts for two FASTA files from different seasons.
+
+**Page:** Workspace → Analytics
+
+**Step-by-step:**
+1. Upload two FASTA files — e.g., `season_2022.fasta` (H3N2-dominant) and `season_2023.fasta` (H1N1-dominant). In **Workspace**, click **⚡ Activate All**.
+2. Go to **Analytics (📊)**. At the top, a **📁 File Scope** radio appears.
+3. Select *season_2022.fasta*. Choose chart type **Distribution**, field **Subtype**, Top N = 10. Click **Generate**. Download the HTML chart (`Download Chart as HTML`).
+4. Switch the scope to *season_2023.fasta*. The Dataset Overview gauges update to show season 2023's sequence count and completeness. Generate the same Distribution chart. Download it.
+5. Open both HTML files in a browser — you now have two comparable subtype distribution charts, one per season.
+
+**Expected result:** A visual comparison showing H3N2 dominance in season 2022 and H1N1 emergence in season 2023.
+
+**Tip for beginners:** The gauge panel at the top of Analytics also rescopes with the file selector — the "Total Sequences", "Avg Sequence Length" and "Data Completeness" indicators update instantly when you switch files. This is a fast way to sanity-check each file before generating full charts.
+
+---
+
+## Use Case 79: Filter Each Source File Separately in Sequence Refinery Then Export Combined
+
+**Goal:** Apply different quality thresholds to two source files in Sequence Refinery (one has shorter sequences, one has longer), then combine their filtered outputs and export as a single merged FASTA.
+
+**Page:** Workspace → Sequence Refinery → Export
+
+**Step-by-step:**
+1. Upload two files in **Workspace**: `short_reads.fasta` (avg ~700 bp) and `full_genome.fasta` (avg ~1700 bp). Click **⚡ Activate All**.
+2. Go to **Sequence Refinery (🔬)**. A **📁 File Scope** radio appears.
+3. Select *short_reads.fasta*. Set Min Length = **600 bp**, Max N-Run = **15**. Click **Apply Quality Filters**. Download the filtered FASTA as `short_reads_filtered.fasta`.
+4. Switch scope to *full_genome.fasta*. Set Min Length = **1400 bp**, Max N-Run = **8**. Click **Apply Quality Filters**. Download the filtered FASTA as `full_genome_filtered.fasta`.
+5. Go back to **Workspace**. Upload both filtered FASTAs. Click **⚡ Activate All**. Your new `active_df` is the combined, separately-filtered dataset.
+6. Navigate to **Export (📋)** and download the merged FASTA as the final product.
+
+**Expected result:** A merged FASTA where short reads are quality-filtered at a lenient threshold appropriate for their length, and full-genome sequences are held to a stricter standard — producing a biologically coherent combined dataset.
+
+**Tip for beginners:** Per-file scope in Refinery sets the baseline for quality sliders — the length histogram and 5th-percentile default change to reflect the scoped file's actual length distribution. This prevents applying full-genome thresholds to partial-gene datasets and vice versa.
+
+---
+
+*End of 79 Use Cases — Vir-Seq-Sift v2.1 with batch multi-file support*
