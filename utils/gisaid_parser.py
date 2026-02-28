@@ -102,39 +102,6 @@ def parse_gisaid_fasta(file_content: str, file_name: str) -> tuple:
     return sequences, parsing_time
 
 
-def decompress_zip_as_files(raw_bytes: bytes, zip_name: str) -> list[tuple[str, str]]:
-    """Extract each FASTA file in a ZIP as a separate (filename, content) pair.
-
-    Unlike :func:`decompress_if_needed`, which merges all FASTA files in the archive
-    into a single string, this function preserves file identity so that each segment
-    (e.g. Segment_HA.fasta, Segment_NA.fasta) can be treated as an independent upload
-    in batch processing workflows.
-
-    Returns:
-        List of (filename, utf-8-decoded-content) tuples, sorted by filename.
-        Returns an empty list if the input is not a valid ZIP archive.
-    """
-    import os as _os
-    results: list[tuple[str, str]] = []
-    try:
-        with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
-            fasta_exts = (".fasta", ".fa", ".fas", ".fna", ".txt")
-            fasta_members = sorted([
-                m for m in zf.namelist()
-                if m.lower().endswith(fasta_exts)
-                and not m.startswith("__MACOSX")
-                and not _os.path.basename(m).startswith(".")
-            ])
-            for member in fasta_members:
-                with zf.open(member) as f:
-                    content = f.read().decode("utf-8", errors="replace")
-                # Use basename so the display name is clean (no path prefix)
-                results.append((_os.path.basename(member), content))
-    except Exception:
-        pass
-    return results
-
-
 def decompress_if_needed(raw_bytes: bytes, file_name: str) -> str:
     """Decompress .gz or .zip files and return a UTF-8 decoded string.
 
@@ -175,6 +142,33 @@ def decompress_if_needed(raw_bytes: bytes, file_name: str) -> str:
     except Exception:
         pass
     return raw_bytes.decode("utf-8", errors="replace")
+
+
+def decompress_zip_to_files(raw_bytes: bytes) -> dict:
+    """Extract a ZIP archive to a {member_basename: fasta_content_str} dict.
+
+    Only FASTA-like members are included (.fasta .fa .fas .fna .txt).
+    Returns an empty dict on failure or if no FASTA members are found.
+    Used by the Workspace upload loop so that each FASTA inside a ZIP
+    is treated as its own separate raw_files entry (batch mode).
+    """
+    import os as _os
+    result = {}
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
+            fasta_exts = (".fasta", ".fa", ".fas", ".fna", ".txt")
+            members = sorted([
+                m for m in zf.namelist()
+                if m.lower().endswith(fasta_exts)
+                and not m.startswith("__MACOSX")
+                and not _os.path.basename(m).startswith(".")
+            ])
+            for member in members:
+                with zf.open(member) as f:
+                    result[member] = f.read().decode("utf-8", errors="replace")
+    except Exception:
+        pass
+    return result
 
 
 def parse_flexible_date(date_str: str):
