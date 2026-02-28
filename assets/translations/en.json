@@ -200,8 +200,8 @@
   "welcome_feat2_desc": "Full English / Russian UI with Rospotrebnadzor-aligned terminology",
   "welcome_feat3": "HITL Smart Sampling",
   "welcome_feat3_desc": "5 bridging strategies: auto sentinel, volume peaks, checklist, visual lasso, time checkpoints",
-  "welcome_feat4": "50K+ Scale Ready",
-  "welcome_feat4_desc": "Adaptive pre-clustering and sample-mode for datasets beyond 10,000 sequences",
+  "welcome_feat4": "Batch Multi-File",
+  "welcome_feat4_desc": "Upload several FASTA files, merge with one click — then analyse each source file independently via per-file scope in Refinery, Analytics and Timeline",
   "welcome_cta_title": "Load Your Dataset",
   "welcome_cta_desc": "Go to Workspace → upload FASTA files → click Activate",
   "welcome_info_title": "Before You Begin",
@@ -210,6 +210,7 @@
   "welcome_info_3": "All processing is local — no sequences are transmitted to external servers",
   "welcome_info_4": "Reset the session at any time to clear all data and start fresh",
   "welcome_info_5": "Use the Header Converter in Sequence Refinery if your headers are not yet pipe-delimited",
+  "welcome_info_batch": "Multiple files merged? Use the 📁 File Scope selector in Refinery, Analytics and Timeline to analyse each source file independently",
   "welcome_header_format_label": "Required pipe-header format:",
   "welcome_header_formats_title": "Supported GISAID header formats:",
   "welcome_hrsv_format_label": "Human RSV (hRSV) — 3-field",
@@ -623,5 +624,13 @@
   "export_per_file_caption": "Download sequences from each source file independently — useful for auditing before and after curation.",
   "export_per_file_zip_btn": "ZIP All Source Files ({n} files)",
   "export_per_file_fasta": "FASTA",
-  "export_per_file_csv": "Metadata CSV"
+  "export_per_file_csv": "Metadata CSV",
+
+  "timeline_slider_view_only_warning": "ℹ️ Slider controls the chart view only — full cluster data is always in the CSV download.",
+  "timeline_bucket_guide_header": "Size Bucket Interpretation Guide",
+  "timeline_bucket_guide_caption": "Use this reference when reading the cluster distribution CSV.",
+  "timeline_scope_batch_info": "{n} files selected — results shown for combined dataset. Individual file tabs coming in v2.2.",
+  "workspace_zip_expanded": "ZIP '{zip}' extracted: {n} separate FASTA files added to the file list.",
+  "upload_zip_no_fasta": "No FASTA files found inside '{fname}'. Check the archive contents.",
+  "sidebar_export_prefix_enter_hint": "Press Enter to apply"
 }
