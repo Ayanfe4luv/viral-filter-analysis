@@ -528,7 +528,7 @@ def _make_epi_curve(df: pd.DataFrame, sensitivity: float, scheme) -> go.Figure:
 # ── 6 NEW chart types ───────────────────────────────────────────────────────
 
 def _make_sunburst(df: pd.DataFrame, depth: int, top_n: int, scheme) -> go.Figure:
-    hier_all = ["clade_l1", "subtype_clean", "host"]
+    hier_all = ["host", "subtype_clean", "clade"]
     hier = [c for c in hier_all if c in df.columns][:depth]
     if not hier:
         return _empty_fig(T("analytics_no_data"))
@@ -545,14 +545,15 @@ def _make_sunburst(df: pd.DataFrame, depth: int, top_n: int, scheme) -> go.Figur
     colors = scheme if isinstance(scheme, list) else None
 
     fig = px.sunburst(agg, path=hier, values="count",
-                      color_discrete_sequence=colors)
+                      color_discrete_sequence=colors,
+                      branchvalues="total")
     fig.update_traces(textinfo="label+percent root", insidetextorientation="radial")
     fig.update_layout(**_LAYOUT, height=520)
     return fig
 
 
 def _make_treemap(df: pd.DataFrame, depth: int, top_n: int, scheme) -> go.Figure:
-    hier_all = ["clade_l1", "subtype_clean", "host"]
+    hier_all = ["host", "subtype_clean", "clade"]
     hier = [c for c in hier_all if c in df.columns][:depth]
     if not hier:
         return _empty_fig(T("analytics_no_data"))
@@ -566,12 +567,18 @@ def _make_treemap(df: pd.DataFrame, depth: int, top_n: int, scheme) -> go.Figure
         sub = sub[sub[col].isin(top_vals)]
 
     agg = sub.groupby(hier).size().reset_index(name="count")
-    colors = scheme if isinstance(scheme, list) else None
 
+    _cscale = scheme if isinstance(scheme, str) else px.colors.sequential.Viridis
     fig = px.treemap(agg, path=hier, values="count",
-                     color_discrete_sequence=colors)
-    fig.update_traces(textinfo="label+value+percent root",
-                      root_color="rgba(0,0,0,0)")
+                     color="count",
+                     color_continuous_scale=_cscale,
+                     branchvalues="total")
+    fig.update_traces(
+        textinfo="label+value+percent parent",
+        textfont=dict(size=12),
+        marker=dict(line=dict(width=2, color="#fff")),
+        root_color="rgba(0,0,0,0)",
+    )
     fig.update_layout(**_LAYOUT, height=520)
     return fig
 
@@ -679,35 +686,40 @@ def _make_parallel(df: pd.DataFrame, dims: list) -> go.Figure:
     return fig
 
 
-def _make_gantt(df: pd.DataFrame, top_n: int, scheme) -> go.Figure:
-    if "subtype_clean" not in df.columns or "collection_date" not in df.columns:
+def _make_gantt(df: pd.DataFrame, top_n: int, scheme, y_field: str = "subtype_clean") -> go.Figure:
+    date_col = "collection_date"
+    if y_field not in df.columns or date_col not in df.columns:
         return _empty_fig(T("analytics_no_data"))
 
-    sub = df[["subtype_clean", "collection_date"]].copy()
-    sub["collection_date"] = pd.to_datetime(sub["collection_date"], errors="coerce")
+    sub = df[[y_field, date_col]].copy()
+    sub[date_col] = pd.to_datetime(sub[date_col], errors="coerce")
     sub = sub.dropna()
     if sub.empty:
         return _empty_fig(T("analytics_no_data"))
 
-    top_types = sub["subtype_clean"].value_counts().nlargest(top_n).index
-    sub = sub[sub["subtype_clean"].isin(top_types)]
+    top_vals = sub[y_field].value_counts().nlargest(top_n).index
+    sub = sub[sub[y_field].isin(top_vals)]
+    counts = sub[y_field].value_counts()
 
     agg = (
-        sub.groupby("subtype_clean")["collection_date"]
+        sub.groupby(y_field)[date_col]
         .agg(Start="min", Finish="max")
         .reset_index()
-        .rename(columns={"subtype_clean": "Subtype"})
     )
+    agg["Sequences"] = agg[y_field].map(counts)
     # px.timeline requires Finish > Start
     same_day = agg["Start"] == agg["Finish"]
     agg.loc[same_day, "Finish"] = agg.loc[same_day, "Finish"] + pd.Timedelta(days=1)
 
     colors = scheme if isinstance(scheme, list) else None
+    y_label = _COL_LABELS.get(y_field, y_field)
 
-    fig = px.timeline(agg, x_start="Start", x_end="Finish", y="Subtype",
-                      color="Subtype", color_discrete_sequence=colors)
+    fig = px.timeline(agg, x_start="Start", x_end="Finish", y=y_field,
+                      color=y_field, color_discrete_sequence=colors,
+                      hover_data={"Sequences": True, "Start": True, "Finish": True},
+                      labels={y_field: y_label})
     fig.update_yaxes(autorange="reversed")
-    fig.update_xaxes(title="Collection Date")
+    fig.update_xaxes(title=T("analytics_gantt_date_axis"))
     fig.update_layout(**_LAYOUT, height=max(320, top_n * 36), showlegend=False)
     return fig
 
@@ -821,10 +833,11 @@ with ctrl_col:
     # ── Sunburst / Treemap ────────────────────────────────────────────────
     elif chart_type in ("sunburst", "treemap"):
         sb1, sb2 = st.columns(2)
-        hier_max = sum(c in _df_enriched.columns for c in ["clade_l1", "subtype_clean", "host"])
+        hier_max = sum(c in _df_enriched.columns for c in ["host", "subtype_clean", "clade"])
         depth = sb1.slider(T("analytics_hierarchy_depth"),
                             min_value=2, max_value=max(2, hier_max), value=min(3, hier_max),
-                            step=1, key="an_depth")
+                            step=1, key="an_depth",
+                            help=T("analytics_hierarchy_depth_help"))
         top_n_h = sb2.number_input(T("analytics_top_n"), min_value=3, max_value=30,
                                     value=10, step=1, key="an_top_n_h")
 
@@ -864,9 +877,17 @@ with ctrl_col:
 
     # ── Gantt Range ───────────────────────────────────────────────────────
     elif chart_type == "gantt":
-        top_n_gantt = st.number_input(T("analytics_gantt_top_n"),
-                                       min_value=3, max_value=40, value=15, step=1,
-                                       key="an_top_n_gantt")
+        gn1, gn2 = st.columns([2, 1])
+        _gantt_y_opts = [k for k, v in _FIELD_MAP.items()
+                         if v in _df_enriched.columns and v != "_year"]
+        gantt_y_label = gn1.selectbox(
+            T("analytics_gantt_y_field"),
+            options=_gantt_y_opts,
+            key="an_gantt_y",
+        )
+        top_n_gantt = gn2.number_input(T("analytics_gantt_top_n"),
+                                        min_value=3, max_value=40, value=15, step=1,
+                                        key="an_top_n_gantt")
 
     # ── Heatmap ───────────────────────────────────────────────────────────
     elif chart_type == "heatmap":
@@ -1093,8 +1114,9 @@ if gen_btn:
                 title = T("analytics_chart_type_parallel")
 
             elif chart_type == "gantt":
-                fig = _make_gantt(_df_enriched, int(top_n_gantt), active_scheme)
-                title = T("analytics_chart_type_gantt")
+                _gantt_y_col = _FIELD_MAP.get(gantt_y_label, "subtype_clean")
+                fig = _make_gantt(_df_enriched, int(top_n_gantt), active_scheme, y_field=_gantt_y_col)
+                title = f"{T('analytics_chart_type_gantt')} — {gantt_y_label}"
 
             elif chart_type == "heatmap":
                 hm_col = _FIELD_MAP.get(hm_field_label, "location")

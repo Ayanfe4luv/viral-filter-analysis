@@ -163,6 +163,11 @@ else:
 
     file_names = [rf["name"] for rf in raw_files]
 
+    # Initialise multiselect state before quick-action buttons to avoid
+    # "created with default but also set via Session State API" warning
+    if "ws_file_multiselect" not in st.session_state:
+        st.session_state["ws_file_multiselect"] = file_names[:1] if file_names else []
+
     # ── Batch quick-action row ────────────────────────────────────────────────
     _bq1, _bq2, _bq3 = st.columns([1, 1, 2])
 
@@ -206,7 +211,6 @@ else:
     selected = st.multiselect(
         T("workspace_select_activate"),
         options=file_names,
-        default=file_names[:1] if file_names else [],
         key="ws_file_multiselect",
     )
 

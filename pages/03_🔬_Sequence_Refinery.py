@@ -318,6 +318,19 @@ with st.expander(f"🧠 {T('hitl_header')}"):
         f"({'<90d' if category == 'Micro' else '90–270d' if category == 'Seasonal' else '>270d'})"
     )
 
+    _lifespan_rec = {
+        "Micro":    ("hitl_rec_micro",    "⚡"),
+        "Seasonal": ("hitl_rec_seasonal", "📅"),
+        "Endemic":  ("hitl_rec_endemic",  "🌍"),
+    }
+    _rec_key, _rec_icon = _lifespan_rec.get(category, ("hitl_rec_endemic", "🌍"))
+    st.markdown(
+        f"""<div style="background:rgba(14,165,233,.1);border-left:4px solid #0ea5e9;
+        border-radius:4px;padding:8px 12px;margin:6px 0">
+        {_rec_icon} <strong>{T('hitl_rec_label')}:</strong> {T(_rec_key)}</div>""",
+        unsafe_allow_html=True,
+    )
+
     strategy = st.radio(
         T("hitl_strategy_label"),
         options=[
@@ -336,6 +349,7 @@ with st.expander(f"🧠 {T('hitl_header')}"):
     # -----------------------------------------------------------------------
     if strategy == T("hitl_strategy_chronological"):
         st.markdown(T("hitl_chron_desc"))
+        st.info(T("hitl_chron_when_to_use"))
         if st.button(T("hitl_apply_chron"), type="primary", use_container_width=True):
             with st.spinner(T("hitl_sampling")):
                 result = sampler.apply_proportionality_rule(current, category)
@@ -355,6 +369,8 @@ with st.expander(f"🧠 {T('hitl_header')}"):
         sensitivity = st.slider(
             T("hitl_sensitivity"), min_value=0.1, max_value=1.0, value=0.5, step=0.05
         )
+        with st.expander(T("hitl_sensitivity_guide_header"), expanded=False):
+            st.markdown(T("hitl_sensitivity_guide_body"))
         if st.button(T("hitl_apply_volume"), type="primary", use_container_width=True):
             with st.spinner(T("hitl_sampling")):
                 waves = detector.detect_epi_waves(current, sensitivity=sensitivity)
@@ -376,6 +392,8 @@ with st.expander(f"🧠 {T('hitl_header')}"):
             T("hitl_sensitivity"), min_value=0.1, max_value=1.0, value=0.5, step=0.05,
             key="checklist_sens"
         )
+        with st.expander(T("hitl_sensitivity_guide_header"), expanded=False):
+            st.markdown(T("hitl_sensitivity_guide_body"))
         candidates = detector.detect_candidate_peaks(current, sensitivity=sensitivity)
 
         if not candidates:
@@ -505,12 +523,24 @@ with st.expander(f"🧠 {T('hitl_header')}"):
             help=T("hitl_checkpoints_help"),
         )
 
+        _tol_presets = ["3D", "5D", "1W", "2W", "1M", "2M", "3M", T("hitl_tol_custom")]
         tolerance = st.selectbox(
             T("hitl_checkpoints_tolerance"),
-            options=["1W", "2W", "1M"],
-            index=1,
+            options=_tol_presets,
+            index=3,
             help=T("hitl_checkpoints_tolerance_help"),
         )
+        _tol_day_map = {"3D": 3, "5D": 5, "1W": 7, "2W": 14, "1M": 30, "2M": 60, "3M": 90}
+        if tolerance == T("hitl_tol_custom"):
+            tol_days = st.number_input(
+                T("hitl_tol_custom_days"),
+                min_value=1, max_value=365, value=10, step=1,
+                key="hitl_custom_tol_days",
+            )
+        else:
+            tol_days = _tol_day_map.get(tolerance, 14)
+        st.caption(T("hitl_tol_preview", days=tol_days))
+        tol = pd.Timedelta(f"{tol_days}D")
 
         if st.button(T("hitl_apply_checkpoints"), type="primary",
                      disabled=not checkpoint_text.strip(), use_container_width=True):
@@ -520,10 +550,6 @@ with st.expander(f"🧠 {T('hitl_header')}"):
                 if c.strip()
             ]
             st.session_state["checkpoint_targets"] = [str(c) for c in checkpoints]
-
-            tol_map = {"1W": pd.Timedelta("7D"), "2W": pd.Timedelta("14D"),
-                       "1M": pd.Timedelta("30D")}
-            tol = tol_map.get(tolerance, pd.Timedelta("14D"))
 
             df_work = current.copy()
             dates = pd.to_datetime(df_work["collection_date"], errors="coerce")
@@ -538,7 +564,7 @@ with st.expander(f"🧠 {T('hitl_header')}"):
             _save_filtered(result, "checkpoint_sampling")
             st.success(
                 f"Checkpoint sampling — {len(result):,} sequences "
-                f"near {len(checkpoints)} checkpoints (\u00b1{tolerance})."
+                f"near {len(checkpoints)} checkpoints (\u00b1{tol_days}d)."
             )
             _download_row(result, "Checkpoint Sample")
             st.rerun()

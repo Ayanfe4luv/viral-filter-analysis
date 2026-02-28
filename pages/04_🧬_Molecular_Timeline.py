@@ -527,6 +527,12 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
 # ─────────────────────────────────────────────────────────────────────────────
 with st.expander(f"⚙️ {T('timeline_config_header')}", expanded=True):
 
+    _ph2_scope = st.session_state.get("tl_scope_selected", [])
+    if _ph2_scope:
+        st.caption(f"📁 {T('timeline_scope_active')}: **{', '.join(_ph2_scope)[:80]}**")
+    elif _tl_contrib:
+        st.caption(f"📊 {T('timeline_scope_all_caption', n=len(_tl_contrib))}")
+
     cfg1, cfg2 = st.columns(2)
 
     with cfg1:
@@ -626,6 +632,12 @@ _major_clusters = _build_clusters(_display_df, min_cluster)
 # PHASE 3 — Interactive Timeline Matrix
 # ─────────────────────────────────────────────────────────────────────────────
 with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
+
+    _ph3_scope = st.session_state.get("tl_scope_selected", [])
+    if _ph3_scope:
+        st.caption(f"📁 {T('timeline_scope_active')}: **{', '.join(_ph3_scope)[:80]}**")
+    elif _tl_contrib:
+        st.caption(f"📊 {T('timeline_scope_all_caption', n=len(_tl_contrib))}")
 
     st.info(f"""
 **{T('timeline_matrix_how_header')}**
@@ -974,13 +986,13 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=True):
                             hovertemplate="%{x}<br>Curated: %{y:,}<extra></extra>",
                         ))
                         _fig_imp.update_layout(
-                            title=T("timeline_impact_chart_title"),
+                            title=dict(text=T("timeline_impact_chart_title"), font=dict(size=13), x=0),
                             barmode="overlay",
-                            margin=dict(t=40, b=0, l=0, r=0),
-                            height=300,
+                            margin=dict(t=30, b=60, l=0, r=0),
+                            height=320,
                             paper_bgcolor="rgba(0,0,0,0)",
                             plot_bgcolor="rgba(0,0,0,0)",
-                            legend=dict(orientation="h", y=1.14, x=0),
+                            legend=dict(orientation="h", y=-0.22, x=0),
                             xaxis=dict(tickangle=-45),
                         )
                         # Figure stored in session_state; rendered by persistent panel below
@@ -1018,14 +1030,84 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=True):
         _r  = st.session_state["_tl_result_df"]
         _rs = st.session_state["_tl_result_stats"]
 
-        # Epidemic curve (stored figure)
-        if "_tl_result_fig" in st.session_state:
-            try:
-                st.divider()
-                st.plotly_chart(st.session_state["_tl_result_fig"],
-                                use_container_width=True)
-            except Exception:
-                pass
+        # ── Visualization type selector ────────────────────────────────────────
+        st.divider()
+        _viz_choice = st.radio(
+            T("timeline_viz_type_label"),
+            options=[
+                T("timeline_viz_curve"),
+                T("timeline_viz_heatmap"),
+                T("timeline_viz_gantt"),
+            ],
+            horizontal=True,
+            key="tl_viz_type",
+            index=0,
+        )
+
+        if _viz_choice == T("timeline_viz_curve"):
+            if "_tl_result_fig" in st.session_state:
+                try:
+                    st.plotly_chart(st.session_state["_tl_result_fig"],
+                                    use_container_width=True)
+                except Exception:
+                    pass
+
+        elif _viz_choice == T("timeline_viz_heatmap"):
+            if "collection_date" in _r.columns and "sequence_hash" in _r.columns:
+                try:
+                    import plotly.express as _px_hm
+                    _r_hm = _r.copy()
+                    _r_hm["_month"] = pd.to_datetime(_r_hm["collection_date"], errors="coerce").dt.strftime("%Y-%m")
+                    _pivot = _r_hm.groupby(["sequence_hash", "_month"]).size().unstack(fill_value=0)
+                    _pivot = _pivot.head(30)
+                    _pivot = _pivot[sorted(_pivot.columns)]
+                    _fig_hm = _px_hm.imshow(
+                        _pivot, aspect="auto",
+                        color_continuous_scale=_tl_pal["seq"],
+                        labels=dict(x=T("timeline_hm_month"), y=T("timeline_hm_clone"), color=T("timeline_hm_count")),
+                    )
+                    _fig_hm.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        height=max(320, len(_pivot) * 20 + 60),
+                        margin=dict(t=20, b=40, l=0, r=0),
+                    )
+                    st.plotly_chart(_fig_hm, use_container_width=True)
+                except Exception as _hm_err:
+                    st.warning(f"Heatmap error: {_hm_err}")
+            else:
+                st.info(T("analytics_no_data"))
+
+        elif _viz_choice == T("timeline_viz_gantt"):
+            if "collection_date" in _r.columns and "sequence_hash" in _r.columns:
+                try:
+                    import plotly.express as _px_gn
+                    _r_gn = _r.copy()
+                    _r_gn["collection_date"] = pd.to_datetime(_r_gn["collection_date"], errors="coerce")
+                    _gantt_df = (
+                        _r_gn.groupby("sequence_hash")["collection_date"]
+                        .agg(Start="min", Finish="max")
+                        .reset_index()
+                    )
+                    _gantt_df.loc[_gantt_df["Start"] == _gantt_df["Finish"], "Finish"] += pd.Timedelta(days=14)
+                    _gantt_df = _gantt_df.sort_values("Start").head(40)
+                    _fig_gn = _px_gn.timeline(
+                        _gantt_df, x_start="Start", x_end="Finish",
+                        y="sequence_hash",
+                        color_discrete_sequence=[_tl_pal["accent"]],
+                        labels={"sequence_hash": T("timeline_gantt_clone_label")},
+                    )
+                    _fig_gn.update_yaxes(autorange="reversed")
+                    _fig_gn.update_layout(
+                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        height=max(320, len(_gantt_df) * 20 + 60),
+                        margin=dict(t=20, b=40, l=0, r=0),
+                        showlegend=False,
+                    )
+                    st.plotly_chart(_fig_gn, use_container_width=True)
+                except Exception as _gn_err:
+                    st.warning(f"Gantt error: {_gn_err}")
+            else:
+                st.info(T("analytics_no_data"))
 
         # Metrics
         st.divider()
@@ -1049,8 +1131,28 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=True):
         else:
             _auto_stem = st.session_state.get("export_prefix", "virsift") or "virsift"
 
-        # Export buttons
+        # ── Inline filename rename — lets user customise stem without leaving the page ─
         st.divider()
+        _rename_col, _rename_hint = st.columns([2, 3])
+        with _rename_col:
+            _tl_stem_override = st.text_input(
+                T("export_rename_label"),
+                value=st.session_state.get("tl_export_stem", _auto_stem),
+                max_chars=60,
+                placeholder=T("export_rename_placeholder"),
+                key="tl_export_stem_input",
+                label_visibility="visible",
+                help=T("export_rename_help"),
+            )
+            import re as _re_stem
+            _tl_stem_override = _re_stem.sub(r"[^\w\-]", "_", _tl_stem_override.strip()) if _tl_stem_override.strip() else _auto_stem
+            st.session_state["tl_export_stem"] = _tl_stem_override
+        with _rename_hint:
+            st.caption(T("export_rename_preview", stem=_tl_stem_override))
+        # Use override stem for all downloads
+        _auto_stem = _tl_stem_override
+
+        # Export buttons
         _ex1, _ex2, _ex3 = st.columns(3)
 
         with _ex1:
