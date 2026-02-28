@@ -662,5 +662,14 @@
   "timeline_hm_month": "Month",
   "timeline_hm_clone": "Sequence Clone",
   "timeline_hm_count": "Sequences",
-  "timeline_gantt_clone_label": "Clone"
+  "timeline_gantt_clone_label": "Clone",
+
+  "timeline_autocheck_intermediate": "✓ Select all intermediate months",
+  "timeline_autocheck_help": "Automatically tick all months between the 1st-seen and last-seen anchor for every clone in this table. Then click 'Generate Preview & Export'.",
+  "timeline_per_file_header": "Per-File Downloads",
+  "timeline_per_file_files": "files",
+  "timeline_per_file_caption": "Download curated sequences split by source file. Check the files you want, then use the FASTA / CSV buttons for each.",
+  "timeline_per_file_download_label": "Download selected files",
+
+  "analytics_chart_title_edit": "Chart title"
 }

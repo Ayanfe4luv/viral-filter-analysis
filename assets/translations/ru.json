@@ -662,5 +662,14 @@
   "timeline_hm_month": "Месяц",
   "timeline_hm_clone": "Клон последовательности",
   "timeline_hm_count": "Последовательности",
-  "timeline_gantt_clone_label": "Клон"
+  "timeline_gantt_clone_label": "Клон",
+
+  "timeline_autocheck_intermediate": "✓ Выбрать все промежуточные месяцы",
+  "timeline_autocheck_help": "Автоматически отметить все месяцы между первым и последним якорем для каждого клона. Затем нажмите «Создать предварительный просмотр и экспорт».",
+  "timeline_per_file_header": "Загрузки по файлам",
+  "timeline_per_file_files": "файлов",
+  "timeline_per_file_caption": "Скачайте куратированные последовательности отдельно для каждого исходного файла. Отметьте нужные файлы и используйте кнопки FASTA / CSV.",
+  "timeline_per_file_download_label": "Скачать выбранные файлы",
+
+  "analytics_chart_title_edit": "Название графика"
 }
