@@ -1137,6 +1137,19 @@ if gen_btn:
 # ---------------------------------------------------------------------------
 
 if "an_fig" in st.session_state:
+    # ── Inline chart title editor ─────────────────────────────────────────────
+    _cur_title = st.session_state.get("an_fig_title", "")
+    _edited_title = st.text_input(
+        T("analytics_chart_title_edit"),
+        value=_cur_title,
+        max_chars=120,
+        key="an_title_edit",
+        label_visibility="visible",
+    )
+    if _edited_title and _edited_title != _cur_title:
+        st.session_state["an_fig_title"] = _edited_title
+        st.session_state["an_fig"].update_layout(title=_edited_title)
+
     st.plotly_chart(st.session_state["an_fig"], use_container_width=True)
 
     # Download row immediately below chart — no scrolling needed

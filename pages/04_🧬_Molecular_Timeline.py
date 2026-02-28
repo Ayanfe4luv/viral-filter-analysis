@@ -118,9 +118,22 @@ if len(_tl_contrib) > 1:
         st.success(T("timeline_scope_file_badge",
                      file=_scope_choices[0], n=len(_display_df)))
     else:
-        # Multiple files selected — combined dataset with batch banner
+        # Multiple files selected — rebuild _display_df from those files with source tracking
+        _scope_dfs = []
+        for _sf_name in _scope_choices:
+            _sf_rf = next((rf for rf in _tl_contrib if rf["name"] == _sf_name), None)
+            if _sf_rf:
+                _sf_df = pd.DataFrame(_sf_rf["parsed"])
+                _sf_df["_source_file"] = _sf_name
+                _scope_dfs.append(_sf_df)
+        if _scope_dfs:
+            _display_df = pd.concat(_scope_dfs, ignore_index=True)
+            if "sequence_hash" not in _display_df.columns and "sequence" in _display_df.columns:
+                _display_df["sequence_hash"] = (
+                    _display_df["sequence"].fillna("")
+                    .apply(lambda s: hashlib.md5(s.upper().encode()).hexdigest()[:12])
+                )
         st.info(T("timeline_scope_batch_info", n=len(_scope_choices)))
-        # _display_df stays as merged active_df for combined analysis
 
     st.divider()
 
@@ -785,12 +798,25 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
                 if _mc in _display_matrix.columns:
                     _display_matrix[_mc] = _display_matrix[_mc].fillna(False).astype(bool)
 
+            # ── Apply auto-check flag BEFORE rendering data_editor ────────────
+            # When the "Select intermediate months" button was clicked we store
+            # a flag plus bump a version counter so that data_editor uses a
+            # fresh key (forcing re-initialisation with the new data).
+            _editor_ver = st.session_state.get("_tl_matrix_editor_ver", 0)
+            if st.session_state.pop("_tl_matrix_autocheck", False):
+                for _idx, _arow in _display_matrix.iterrows():
+                    _f_m = str(_arow.get("first_seen", ""))
+                    _l_m = str(_arow.get("last_seen", ""))
+                    for _mc in _month_cols:
+                        if _mc in _display_matrix.columns and _f_m <= _mc <= _l_m:
+                            _display_matrix.at[_idx, _mc] = True
+
             edited = st.data_editor(
                 _display_matrix,
                 use_container_width=True,
                 hide_index=True,
                 column_config=_col_config,
-                key="timeline_matrix_editor",
+                key=f"timeline_matrix_editor_{_editor_ver}",
                 num_rows="fixed",
             )
 
@@ -799,7 +825,7 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
             st.session_state["_tl_matrix_df"]     = _matrix_df
             st.session_state["_tl_month_cols"]    = _month_cols
 
-            # Download the matrix as CSV
+            # Download the matrix as CSV + Auto-tick button
             _pfx_mat = st.session_state.get("export_prefix", "virsift") or "virsift"
             _dl1, _dl2 = st.columns(2)
             with _dl1:
@@ -811,6 +837,16 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
                     use_container_width=True,
                     help=f"📄 {_pfx_mat}_timeline_matrix.csv · rename prefix in sidebar",
                 )
+            with _dl2:
+                if st.button(
+                    T("timeline_autocheck_intermediate"),
+                    use_container_width=True,
+                    help=T("timeline_autocheck_help"),
+                    key="tl_autocheck_btn",
+                ):
+                    st.session_state["_tl_matrix_autocheck"] = True
+                    st.session_state["_tl_matrix_editor_ver"] = _editor_ver + 1
+                    st.rerun()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PHASE 4 — Impact Preview & Export
@@ -1053,12 +1089,13 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=True):
                     pass
 
         elif _viz_choice == T("timeline_viz_heatmap"):
-            if "collection_date" in _r.columns and "sequence_hash" in _r.columns:
+            _hm_id_col = "sequence_clone" if "sequence_clone" in _r.columns else "sequence_hash"
+            if "collection_date" in _r.columns and _hm_id_col in _r.columns:
                 try:
                     import plotly.express as _px_hm
                     _r_hm = _r.copy()
                     _r_hm["_month"] = pd.to_datetime(_r_hm["collection_date"], errors="coerce").dt.strftime("%Y-%m")
-                    _pivot = _r_hm.groupby(["sequence_hash", "_month"]).size().unstack(fill_value=0)
+                    _pivot = _r_hm.groupby([_hm_id_col, "_month"]).size().unstack(fill_value=0)
                     _pivot = _pivot.head(30)
                     _pivot = _pivot[sorted(_pivot.columns)]
                     _fig_hm = _px_hm.imshow(
@@ -1078,13 +1115,14 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=True):
                 st.info(T("analytics_no_data"))
 
         elif _viz_choice == T("timeline_viz_gantt"):
-            if "collection_date" in _r.columns and "sequence_hash" in _r.columns:
+            _gn_id_col = "sequence_clone" if "sequence_clone" in _r.columns else "sequence_hash"
+            if "collection_date" in _r.columns and _gn_id_col in _r.columns:
                 try:
                     import plotly.express as _px_gn
                     _r_gn = _r.copy()
                     _r_gn["collection_date"] = pd.to_datetime(_r_gn["collection_date"], errors="coerce")
                     _gantt_df = (
-                        _r_gn.groupby("sequence_hash")["collection_date"]
+                        _r_gn.groupby(_gn_id_col)["collection_date"]
                         .agg(Start="min", Finish="max")
                         .reset_index()
                     )
@@ -1092,9 +1130,9 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=True):
                     _gantt_df = _gantt_df.sort_values("Start").head(40)
                     _fig_gn = _px_gn.timeline(
                         _gantt_df, x_start="Start", x_end="Finish",
-                        y="sequence_hash",
+                        y=_gn_id_col,
                         color_discrete_sequence=[_tl_pal["accent"]],
-                        labels={"sequence_hash": T("timeline_gantt_clone_label")},
+                        labels={_gn_id_col: T("timeline_gantt_clone_label")},
                     )
                     _fig_gn.update_yaxes(autorange="reversed")
                     _fig_gn.update_layout(
@@ -1205,6 +1243,66 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=True):
                 use_container_width=True,
                 help=f"📄 {_auto_stem}_timeline_methodology.json",
             )
+
+        # ── Per-file downloads (when multiple source files are present) ────────
+        if "_source_file" in _r.columns:
+            _src_files = _r["_source_file"].dropna().unique().tolist()
+            if len(_src_files) > 1:
+                st.divider()
+                with st.expander(
+                    f"📂 {T('timeline_per_file_header')} ({len(_src_files)} {T('timeline_per_file_files')})",
+                    expanded=False,
+                ):
+                    st.caption(T("timeline_per_file_caption"))
+
+                    # Checkboxes to choose which files to download (scalable to 50+)
+                    _pf_selected = []
+                    _pf_cols = st.columns(min(3, len(_src_files)))
+                    for _pf_i, _pf_name in enumerate(_src_files):
+                        _pf_stem = _pl_ex.Path(_pf_name).stem
+                        _pf_n = int((_r["_source_file"] == _pf_name).sum())
+                        _col_idx = _pf_i % len(_pf_cols)
+                        if _pf_cols[_col_idx].checkbox(
+                            f"**{_pf_stem}** ({_pf_n:,} seqs)",
+                            value=True,
+                            key=f"tl_pf_check_{_pf_i}",
+                        ):
+                            _pf_selected.append(_pf_name)
+
+                    if _pf_selected:
+                        st.markdown(f"**{T('timeline_per_file_download_label')}:**")
+                        for _pf_name in _pf_selected:
+                            _pf_stem = _pl_ex.Path(_pf_name).stem
+                            _pf_df = _r[_r["_source_file"] == _pf_name].copy()
+                            _pf_c1, _pf_c2 = st.columns(2)
+                            # FASTA
+                            try:
+                                from utils.gisaid_parser import convert_df_to_fasta
+                                _pf_fasta = convert_df_to_fasta(_pf_df)
+                            except Exception:
+                                _pf_lines = []
+                                for _, _pfr in _pf_df.iterrows():
+                                    _pf_lines.append(f">{_pfr.get('isolate', _pfr.get('sequence_hash', 'seq'))}")
+                                    _pf_lines.append(_pfr.get("sequence", ""))
+                                _pf_fasta = "\n".join(_pf_lines).encode("utf-8")
+                            _pf_c1.download_button(
+                                label=f"FASTA — {_pf_stem} ({len(_pf_df):,})",
+                                data=_pf_fasta,
+                                file_name=f"{_pf_stem}_timeline.fasta",
+                                mime="text/plain",
+                                use_container_width=True,
+                                key=f"tl_pf_fasta_{_pf_i}",
+                            )
+                            # Metadata CSV
+                            _pf_meta_cols = [c for c in _pf_df.columns if c not in ("sequence", "_source_file")]
+                            _pf_c2.download_button(
+                                label=f"CSV — {_pf_stem}",
+                                data=_pf_df[_pf_meta_cols].to_csv(index=False).encode("utf-8-sig"),
+                                file_name=f"{_pf_stem}_timeline_metadata.csv",
+                                mime="text/csv",
+                                use_container_width=True,
+                                key=f"tl_pf_csv_{_pf_i}",
+                            )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Per-page sidebar
