@@ -632,5 +632,35 @@
   "timeline_scope_batch_info": "{n} files selected — results shown for combined dataset. Individual file tabs coming in v2.2.",
   "workspace_zip_expanded": "ZIP '{zip}' extracted: {n} separate FASTA files added to the file list.",
   "upload_zip_no_fasta": "No FASTA files found inside '{fname}'. Check the archive contents.",
-  "sidebar_export_prefix_enter_hint": "Press Enter to apply"
+  "sidebar_export_prefix_enter_hint": "Press Enter to apply",
+
+  "export_rename_label": "Output filename prefix",
+  "export_rename_placeholder": "e.g. H1N1_HA_2024 — auto-filled from source file",
+  "export_rename_help": "Customise the stem used for all downloaded files. Spaces and special characters become underscores.",
+  "export_rename_preview": "Preview: {stem}_timeline.fasta  ·  {stem}_timeline_metadata.csv",
+
+  "analytics_gantt_y_field": "Group by",
+  "analytics_gantt_date_axis": "Collection Date Range",
+  "analytics_hierarchy_depth_help": "1 = Host only · 2 = Host → Subtype · 3 = Host → Subtype → Clade",
+
+  "hitl_rec_label": "Recommended strategy for your dataset",
+  "hitl_rec_micro": "Auto: Chronological Sentinel — short dataset, use proportional weekly bins",
+  "hitl_rec_seasonal": "Auto: Highest Volume Peaks — seasonal pattern, focus on epidemic wave peaks",
+  "hitl_rec_endemic": "Manual: Peak Checklist or Custom Checkpoints — long-running endemic, pick sentinel dates",
+  "hitl_sensitivity_guide_header": "Sensitivity Guide",
+  "hitl_sensitivity_guide_body": "| Value | Behaviour | Best for |\n|-------|-----------|----------|\n| 0.1–0.3 | Very sensitive — detects minor peaks, many periods selected | Sparse data, don't miss small outbreaks |\n| 0.4–0.6 | Balanced — recommended default | General-purpose epidemic surveillance |\n| 0.7–1.0 | Conservative — only major epidemic waves | Large datasets, dominant surges only |",
+  "hitl_chron_when_to_use": "Best for uniform temporal sampling of endemic datasets. Automatically divides your date range into proportional bins and picks one sentinel per bin. Works well for datasets spanning more than 6 months.",
+  "hitl_tol_custom": "Custom (days)",
+  "hitl_tol_custom_days": "Tolerance window (days)",
+  "hitl_tol_preview": "Sequences within ±{days} days of each checkpoint will be included.",
+
+  "timeline_scope_active": "Active scope",
+  "timeline_viz_type_label": "Impact visualization",
+  "timeline_viz_curve": "Epidemic Curve",
+  "timeline_viz_heatmap": "Monthly Heatmap",
+  "timeline_viz_gantt": "Persistence Gantt",
+  "timeline_hm_month": "Month",
+  "timeline_hm_clone": "Sequence Clone",
+  "timeline_hm_count": "Sequences",
+  "timeline_gantt_clone_label": "Clone"
 }
