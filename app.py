@@ -659,6 +659,7 @@ def _render_sidebar() -> None:
             help=T("sidebar_export_prefix_help"),
             key="export_prefix_input",
         )
+        st.caption(f"↵ {T('sidebar_export_prefix_enter_hint')}")
         if _new_pfx and _new_pfx.strip():
             # Sanitise: keep alphanumeric, hyphen, underscore only
             import re as _re
