@@ -65,6 +65,42 @@ if uploaded_files:
                              mb=f"{_sz / 1024 / 1024:.0f}"))
         with st.spinner(f"Parsing `{uf.name}`…"):
             raw_bytes = uf.read()
+
+            # ── ZIP: expand each member as its own raw_files entry (batch mode) ──
+            if uf.name.lower().endswith(".zip"):
+                from utils.gisaid_parser import decompress_zip_to_files
+                import pathlib as _pl
+                _zip_members = decompress_zip_to_files(raw_bytes)
+                if not _zip_members:
+                    st.error(T("upload_zip_no_fasta", fname=uf.name))
+                    continue
+                _zip_added = 0
+                for _member_path, _member_content in _zip_members.items():
+                    _short = _pl.Path(_member_path).name  # strip internal folder
+                    if _short in existing_names:
+                        continue
+                    _parsed, _pt = parse_gisaid_fasta(_member_content, _short)
+                    if not _parsed:
+                        continue
+                    st.session_state["raw_files"].append({
+                        "name":        _short,
+                        "parsed":      _parsed,
+                        "parse_time":  _pt,
+                        "n_sequences": len(_parsed),
+                    })
+                    existing_names.add(_short)
+                    st.session_state["action_logs"].append({
+                        "action":    "parse",
+                        "file":      _short,
+                        "sequences": len(_parsed),
+                        "time_s":    round(_pt, 3),
+                        "timestamp": pd.Timestamp.now().isoformat(),
+                    })
+                    _zip_added += 1
+                if _zip_added:
+                    st.success(T("workspace_zip_expanded", n=_zip_added, zip=uf.name))
+                continue  # Skip single-file path below
+            # ── Single FASTA / .gz ────────────────────────────────────────────────
             content = decompress_if_needed(raw_bytes, uf.name)
             parsed_list, parse_time = parse_gisaid_fasta(content, uf.name)
 

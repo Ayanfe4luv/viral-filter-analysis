@@ -90,23 +90,23 @@ _tl_act_names = _tl_last_act.get("files", []) if _tl_last_act else []
 _tl_contrib   = [rf for rf in _tl_raw_files if rf["name"] in _tl_act_names]
 
 if len(_tl_contrib) > 1:
-    _scope_opts = [T("timeline_scope_all")] + [rf["name"] for rf in _tl_contrib]
-    _tl_scope = st.radio(
+    _scope_choices = st.multiselect(
         T("timeline_scope_label"),
-        options=_scope_opts,
-        index=st.session_state.get("tl_scope_idx", 0),
-        horizontal=True,
-        key="tl_file_scope",
+        options=[rf["name"] for rf in _tl_contrib],
+        default=st.session_state.get("tl_scope_selected", []),
+        key="tl_file_scope_multi",
         help=T("timeline_scope_help"),
+        placeholder=T("timeline_scope_all"),
     )
-    # Store index for next rerun to preserve selection
-    st.session_state["tl_scope_idx"] = _scope_opts.index(_tl_scope)
+    st.session_state["tl_scope_selected"] = _scope_choices
 
-    if _tl_scope != T("timeline_scope_all"):
-        # Override _display_df with the chosen file's raw data
-        _scope_rf = next(rf for rf in _tl_contrib if rf["name"] == _tl_scope)
+    if not _scope_choices:
+        # Nothing selected → all files combined (same as previous "All" option)
+        st.caption(T("timeline_scope_all_caption", n=len(_tl_contrib)))
+    elif len(_scope_choices) == 1:
+        # Single file selected — override _display_df with that file's data
+        _scope_rf = next(rf for rf in _tl_contrib if rf["name"] == _scope_choices[0])
         _display_df = pd.DataFrame(_scope_rf["parsed"])
-        # Ensure sequence_hash is present (parse_gisaid_fasta adds it, but safeguard)
         if "sequence_hash" not in _display_df.columns and "sequence" in _display_df.columns:
             _display_df = _display_df.copy()
             _display_df["sequence_hash"] = (
@@ -114,11 +114,13 @@ if len(_tl_contrib) > 1:
                 .fillna("")
                 .apply(lambda s: hashlib.md5(s.upper().encode()).hexdigest()[:12])
             )
-        _mode_badge = f"📁 {_tl_scope[:30]}"
+        _mode_badge = f"📁 {_scope_choices[0][:30]}"
         st.success(T("timeline_scope_file_badge",
-                     file=_tl_scope, n=len(_display_df)))
+                     file=_scope_choices[0], n=len(_display_df)))
     else:
-        st.caption(T("timeline_scope_all_caption", n=len(_tl_contrib)))
+        # Multiple files selected — combined dataset with batch banner
+        st.info(T("timeline_scope_batch_info", n=len(_scope_choices)))
+        # _display_df stays as merged active_df for combined analysis
 
     st.divider()
 
@@ -256,6 +258,7 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
                 help=T("timeline_top_n_help"),
                 key="tl_diag_top_n",
             )
+            st.caption(T("timeline_slider_view_only_warning"))
 
         try:
             import plotly.express as _px_diag
@@ -463,7 +466,7 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
         with _dl_c1:
             st.download_button(
                 label=T("timeline_download_cluster_csv"),
-                data=cluster_summary.to_csv(index=False).encode("utf-8"),
+                data=cluster_summary.to_csv(index=False).encode("utf-8-sig"),
                 file_name=f"{_pfx_p1}_cluster_summary.csv",
                 mime="text/csv",
                 use_container_width=True,
@@ -505,12 +508,17 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
             )
             st.download_button(
                 label=T("timeline_cluster_dist_download"),
-                data=_annot_csv.encode("utf-8"),
+                data=_annot_csv.encode("utf-8-sig"),
                 file_name=f"{_pfx_p1}_cluster_distribution.csv",
                 mime="text/csv",
                 use_container_width=True,
                 help=f"📄 {_pfx_p1}_cluster_distribution.csv — includes size bucket explanations · rename prefix in sidebar",
             )
+
+        # ── Inline size bucket interpretation guide ───────────────────────────
+        with st.expander(T("timeline_bucket_guide_header"), expanded=False):
+            st.dataframe(_guide_df, use_container_width=True, hide_index=True)
+            st.caption(T("timeline_bucket_guide_caption"))
     else:
         st.info(T("timeline_all_singletons"))
 
@@ -681,10 +689,11 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
         if matrix_rows:
             _matrix_df = pd.DataFrame(matrix_rows)
 
-            # Identify month columns (exclude metadata columns)
+            # Identify month columns (exclude metadata columns) — sort chronologically
             _meta_cols = ["sequence_clone", "sequence_hash", "total_sequences",
                           "first_seen", "last_seen", "months_active"]
-            _month_cols = [c for c in _matrix_df.columns if c not in _meta_cols]
+            _month_cols = sorted([c for c in _matrix_df.columns if c not in _meta_cols])
+            _matrix_df  = _matrix_df[_meta_cols + _month_cols]
 
             # ── CSS: make checked data-editor checkboxes visually distinct ──────
             st.markdown("""
@@ -784,7 +793,7 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
             with _dl1:
                 st.download_button(
                     label=T("timeline_download_matrix_csv"),
-                    data=edited.to_csv(index=False).encode("utf-8"),
+                    data=edited.to_csv(index=False).encode("utf-8-sig"),
                     file_name=f"{_pfx_mat}_timeline_matrix.csv",
                     mime="text/csv",
                     use_container_width=True,
@@ -974,14 +983,12 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=True):
                             legend=dict(orientation="h", y=1.14, x=0),
                             xaxis=dict(tickangle=-45),
                         )
-                        st.plotly_chart(_fig_imp, use_container_width=True)
+                        # Figure stored in session_state; rendered by persistent panel below
+                        st.session_state["_tl_result_fig"] = _fig_imp
                 except Exception:
-                    pass
+                    st.session_state.pop("_tl_result_fig", None)
 
                 # ── 4-card curation impact metrics ────────────────────────────────
-                st.divider()
-                st.subheader(T("timeline_curation_impact"))
-
                 compression = (1 - len(result_df) / max(len(_display_df), 1)) * 100
                 _seqs_removed = len(_display_df) - len(result_df)
                 _coverage_str = "N/A"
@@ -990,82 +997,112 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=True):
                     _cur_periods = pd.to_datetime(result_df["collection_date"], errors="coerce").dt.to_period("M").nunique()
                     _coverage_str = f"{(_cur_periods / max(_raw_periods, 1) * 100):.0f}%"
 
-                im1, im2, im3, im4 = st.columns(4)
-                im1.metric(
-                    T("timeline_total_sequences"),
-                    f"{len(_display_df):,} → {len(result_df):,}",
-                    help="Sequence count before and after timeline curation.",
-                )
-                im2.metric(T("timeline_compression"), f"{compression:.1f}%")
-                im3.metric(T("timeline_seqs_removed"), f"{_seqs_removed:,}")
-                im4.metric(T("timeline_coverage"), _coverage_str)
-
-                # Store result
-                st.session_state["filtered_df"] = result_df
-                st.success(T("timeline_extraction_success", n=len(result_df)))
-
-                # Export buttons
-                st.divider()
-                _pfx_ex = st.session_state.get("export_prefix", "virsift") or "virsift"
-                ex1, ex2, ex3 = st.columns(3)
-
-                with ex1:
-                    # FASTA export
-                    try:
-                        from utils.gisaid_parser import convert_df_to_fasta
-                        fasta_out = convert_df_to_fasta(result_df)
-                    except Exception:
-                        # Fallback FASTA builder
-                        lines = []
-                        for _, r in result_df.iterrows():
-                            hdr = r.get("isolate", r.get("sequence_hash", "seq"))
-                            seq = r.get("sequence", "")
-                            lines.append(f">{hdr}")
-                            lines.append(seq)
-                        fasta_out = "\n".join(lines).encode("utf-8")
-                    st.download_button(
-                        label=T("download_fasta_label", count=len(result_df)),
-                        data=fasta_out,
-                        file_name=f"{_pfx_ex}_timeline_curated.fasta",
-                        mime="text/plain",
-                        type="primary",
-                        use_container_width=True,
-                        help=f"📄 {_pfx_ex}_timeline_curated.fasta · rename prefix in sidebar",
-                    )
-
-                with ex2:
-                    # Metadata CSV
-                    meta_cols = [c for c in result_df.columns if c != "sequence"]
-                    st.download_button(
-                        label=T("download_csv_label"),
-                        data=result_df[meta_cols].to_csv(index=False).encode("utf-8"),
-                        file_name=f"{_pfx_ex}_timeline_metadata.csv",
-                        mime="text/csv",
-                        use_container_width=True,
-                        help=f"📄 {_pfx_ex}_timeline_metadata.csv · rename prefix in sidebar",
-                    )
-
-                with ex3:
-                    # Methodology JSON snapshot
-                    snapshot = {
-                        "tool": "Vir-Seq-Sift v2.1 — Molecular Timeline Tracker",
-                        "exported": datetime.now().isoformat(),
-                        "representative_logic": _rep_opt,
-                        "min_cluster_size": min_cluster,
-                        "input_sequences": len(_display_df),
-                        "output_sequences": len(result_df),
-                        "compression_pct": round(compression, 2),
-                    }
-                    st.download_button(
-                        label=T("download_json_label"),
-                        data=json.dumps(snapshot, indent=2, ensure_ascii=False).encode("utf-8"),
-                        file_name=f"{_pfx_ex}_timeline_methodology.json",
-                        mime="application/json",
-                        use_container_width=True,
-                        help=f"📄 {_pfx_ex}_timeline_methodology.json · rename prefix in sidebar",
-                    )
+                # Store result + stats in session_state so the UI survives sidebar reruns
+                st.session_state["filtered_df"]     = result_df
+                st.session_state["_tl_result_df"]   = result_df
+                st.session_state["_tl_result_stats"] = {
+                    "n_in":        len(_display_df),
+                    "n_out":       len(result_df),
+                    "compression": compression,
+                    "seqs_removed": _seqs_removed,
+                    "coverage":    _coverage_str,
+                    "rep_opt":     _rep_opt,
+                    "min_cluster": min_cluster,
+                    "scope_files": st.session_state.get("tl_scope_selected", []),
+                }
             else:
                 st.warning(T("timeline_no_months_selected"))
+
+    # ── Persistent results panel — survives sidebar reruns ────────────────────
+    if "_tl_result_df" in st.session_state:
+        _r  = st.session_state["_tl_result_df"]
+        _rs = st.session_state["_tl_result_stats"]
+
+        # Epidemic curve (stored figure)
+        if "_tl_result_fig" in st.session_state:
+            try:
+                st.divider()
+                st.plotly_chart(st.session_state["_tl_result_fig"],
+                                use_container_width=True)
+            except Exception:
+                pass
+
+        # Metrics
+        st.divider()
+        st.subheader(T("timeline_curation_impact"))
+        _im1, _im2, _im3, _im4 = st.columns(4)
+        _im1.metric(
+            T("timeline_total_sequences"),
+            f"{_rs['n_in']:,} → {_rs['n_out']:,}",
+            help="Sequence count before and after timeline curation.",
+        )
+        _im2.metric(T("timeline_compression"), f"{_rs['compression']:.1f}%")
+        _im3.metric(T("timeline_seqs_removed"), f"{_rs['seqs_removed']:,}")
+        _im4.metric(T("timeline_coverage"), _rs["coverage"])
+        st.success(T("timeline_extraction_success", n=_rs["n_out"]))
+
+        # Auto-derive filename stem from scope selection or global prefix
+        import pathlib as _pl_ex
+        _scope_files_ex = _rs.get("scope_files") or []
+        if len(_scope_files_ex) == 1:
+            _auto_stem = _pl_ex.Path(_scope_files_ex[0]).stem
+        else:
+            _auto_stem = st.session_state.get("export_prefix", "virsift") or "virsift"
+
+        # Export buttons
+        st.divider()
+        _ex1, _ex2, _ex3 = st.columns(3)
+
+        with _ex1:
+            try:
+                from utils.gisaid_parser import convert_df_to_fasta
+                _fasta_out = convert_df_to_fasta(_r)
+            except Exception:
+                _flines = []
+                for _, _fr in _r.iterrows():
+                    _fhdr = _fr.get("isolate", _fr.get("sequence_hash", "seq"))
+                    _flines.append(f">{_fhdr}")
+                    _flines.append(_fr.get("sequence", ""))
+                _fasta_out = "\n".join(_flines).encode("utf-8")
+            st.download_button(
+                label=T("download_fasta_label", count=len(_r)),
+                data=_fasta_out,
+                file_name=f"{_auto_stem}_timeline.fasta",
+                mime="text/plain",
+                type="primary",
+                use_container_width=True,
+                help=f"📄 {_auto_stem}_timeline.fasta",
+            )
+
+        with _ex2:
+            _meta_cols_ex = [c for c in _r.columns if c != "sequence"]
+            st.download_button(
+                label=T("download_csv_label"),
+                data=_r[_meta_cols_ex].to_csv(index=False).encode("utf-8-sig"),
+                file_name=f"{_auto_stem}_timeline_metadata.csv",
+                mime="text/csv",
+                use_container_width=True,
+                help=f"📄 {_auto_stem}_timeline_metadata.csv",
+            )
+
+        with _ex3:
+            _snap = {
+                "tool":               "Vir-Seq-Sift v2.1 — Molecular Timeline Tracker",
+                "exported":           datetime.now().isoformat(),
+                "representative_logic": _rs.get("rep_opt", ""),
+                "min_cluster_size":   _rs.get("min_cluster", 3),
+                "input_sequences":    _rs["n_in"],
+                "output_sequences":   _rs["n_out"],
+                "compression_pct":    round(_rs["compression"], 2),
+            }
+            st.download_button(
+                label=T("download_json_label"),
+                data=json.dumps(_snap, indent=2, ensure_ascii=False).encode("utf-8"),
+                file_name=f"{_auto_stem}_timeline_methodology.json",
+                mime="application/json",
+                use_container_width=True,
+                help=f"📄 {_auto_stem}_timeline_methodology.json",
+            )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Per-page sidebar
