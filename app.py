@@ -106,13 +106,13 @@ _init_session_state()
 # Step 3: Wire navigation pages
 # ---------------------------------------------------------------------------
 _PAGES = [
-    st.Page("pages/01_🌍_Observatory.py",        title=T("nav_observatory"),  icon="🌍"),
-    st.Page("pages/02_📁_Workspace.py",          title=T("nav_workspace"),    icon="📁"),
-    st.Page("pages/03_🔬_Sequence_Refinery.py",  title=T("nav_refinery"),     icon="🔬"),
-    st.Page("pages/04_🧬_Molecular_Timeline.py", title=T("nav_timeline"),     icon="🧬"),
-    st.Page("pages/05_📊_Analytics.py",          title=T("nav_analytics"),    icon="📊"),
-    st.Page("pages/06_📋_Export.py",             title=T("nav_export"),       icon="📋"),
-    st.Page("pages/07_📚_Documentation.py",      title=T("nav_documentation"), icon="📚"),
+    st.Page("pages/01_🌍_Observatory.py",        title=T("nav_observatory"),   icon="🌍", url_path="observatory"),
+    st.Page("pages/02_📁_Workspace.py",          title=T("nav_workspace"),     icon="📁", url_path="workspace"),
+    st.Page("pages/03_🔬_Sequence_Refinery.py",  title=T("nav_refinery"),      icon="🔬", url_path="refinery"),
+    st.Page("pages/04_🧬_Molecular_Timeline.py", title=T("nav_timeline"),      icon="🧬", url_path="timeline"),
+    st.Page("pages/05_📊_Analytics.py",          title=T("nav_analytics"),     icon="📊", url_path="analytics"),
+    st.Page("pages/06_📋_Export.py",             title=T("nav_export"),        icon="📋", url_path="export"),
+    st.Page("pages/07_📚_Documentation.py",      title=T("nav_documentation"), icon="📚", url_path="documentation"),
 ]
 
 pg = st.navigation(_PAGES)
