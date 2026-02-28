@@ -798,18 +798,48 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
                 if _mc in _display_matrix.columns:
                     _display_matrix[_mc] = _display_matrix[_mc].fillna(False).astype(bool)
 
-            # ── Apply auto-check flag BEFORE rendering data_editor ────────────
-            # When the "Select intermediate months" button was clicked we store
-            # a flag plus bump a version counter so that data_editor uses a
-            # fresh key (forcing re-initialisation with the new data).
+            # ── Auto-check toggle: checkbox that pre-fills all intermediate months ─
             _editor_ver = st.session_state.get("_tl_matrix_editor_ver", 0)
-            if st.session_state.pop("_tl_matrix_autocheck", False):
+            _ac_state   = st.session_state.get("_tl_ac_prev", False)
+            _autocheck_on = st.checkbox(
+                T("timeline_autocheck_intermediate"),
+                value=_ac_state,
+                key="tl_autocheck_chk",
+                help=T("timeline_autocheck_help"),
+            )
+            # Detect toggle and bump editor version to force data_editor reinit
+            if _autocheck_on != _ac_state:
+                st.session_state["_tl_ac_prev"]          = _autocheck_on
+                st.session_state["_tl_matrix_editor_ver"] = _editor_ver + 1
+                _editor_ver += 1
+                if _autocheck_on:
+                    st.session_state["_tl_matrix_autocheck"] = True
+                else:
+                    st.session_state["_tl_matrix_autocheck"] = "reset"
+                st.rerun()
+
+            # ── Apply auto-check / reset flag BEFORE data_editor renders ──────
+            _ac_flag = st.session_state.pop("_tl_matrix_autocheck", None)
+            if _ac_flag is True:
                 for _idx, _arow in _display_matrix.iterrows():
                     _f_m = str(_arow.get("first_seen", ""))
                     _l_m = str(_arow.get("last_seen", ""))
                     for _mc in _month_cols:
                         if _mc in _display_matrix.columns and _f_m <= _mc <= _l_m:
                             _display_matrix.at[_idx, _mc] = True
+            elif _ac_flag == "reset":
+                # Revert to anchors only (first/last seen per clone)
+                for _idx, _arow in _display_matrix.iterrows():
+                    _f_m = str(_arow.get("first_seen", ""))
+                    _l_m = str(_arow.get("last_seen", ""))
+                    for _mc in _month_cols:
+                        if _mc in _display_matrix.columns:
+                            _is_anchor = (_mc == _f_m or _mc == _l_m)
+                            _display_matrix.at[_idx, _mc] = _is_anchor
+
+            # Store pre-filled matrix so download CSV reflects it even before
+            # the user edits anything in data_editor
+            st.session_state["_tl_edited_matrix"] = _display_matrix.copy()
 
             edited = st.data_editor(
                 _display_matrix,
@@ -820,33 +850,25 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
                 num_rows="fixed",
             )
 
-            # Store edited matrix + hash map back into session
+            # Update with any user edits made this render
             st.session_state["_tl_edited_matrix"] = edited
             st.session_state["_tl_matrix_df"]     = _matrix_df
             st.session_state["_tl_month_cols"]    = _month_cols
 
-            # Download the matrix as CSV + Auto-tick button
+            # Download the matrix as CSV
             _pfx_mat = st.session_state.get("export_prefix", "virsift") or "virsift"
             _dl1, _dl2 = st.columns(2)
             with _dl1:
+                _mat_to_dl = st.session_state.get("_tl_edited_matrix", edited)
                 st.download_button(
                     label=T("timeline_download_matrix_csv"),
-                    data=edited.to_csv(index=False).encode("utf-8-sig"),
+                    data=_mat_to_dl.to_csv(index=False).encode("utf-8-sig"),
                     file_name=f"{_pfx_mat}_timeline_matrix.csv",
                     mime="text/csv",
                     use_container_width=True,
                     help=f"📄 {_pfx_mat}_timeline_matrix.csv · rename prefix in sidebar",
+                    key="tl_dl_matrix_csv",
                 )
-            with _dl2:
-                if st.button(
-                    T("timeline_autocheck_intermediate"),
-                    use_container_width=True,
-                    help=T("timeline_autocheck_help"),
-                    key="tl_autocheck_btn",
-                ):
-                    st.session_state["_tl_matrix_autocheck"] = True
-                    st.session_state["_tl_matrix_editor_ver"] = _editor_ver + 1
-                    st.rerun()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PHASE 4 — Impact Preview & Export
@@ -955,6 +977,17 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=True):
 
             if selected_seqs:
                 result_df = pd.concat(selected_seqs).drop_duplicates()
+
+                # ── Attach human-readable sequence_clone from matrix ──────────
+                # _display_df only carries sequence_hash; the readable clone name
+                # (e.g. "A/Novosibirsk/7.288/2025-like (n=80)") lives in matrix_df.
+                if "sequence_hash" in result_df.columns:
+                    _h2c = matrix_df.set_index("sequence_hash")["sequence_clone"].to_dict()
+                    result_df = result_df.copy()
+                    result_df["sequence_clone"] = (
+                        result_df["sequence_hash"].map(_h2c)
+                        .fillna(result_df["sequence_hash"])
+                    )
 
                 # Singleton pass-through: sequences below min_cluster are hidden from the
                 # matrix UI but must still be auto-included (First + Last occurrence).
@@ -1244,65 +1277,72 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=True):
                 help=f"📄 {_auto_stem}_timeline_methodology.json",
             )
 
-        # ── Per-file downloads (when multiple source files are present) ────────
+        # ── Per-file downloads (when multiple source files were curated) ─────────
         if "_source_file" in _r.columns:
-            _src_files = _r["_source_file"].dropna().unique().tolist()
+            _src_files = sorted(_r["_source_file"].dropna().unique().tolist())
             if len(_src_files) > 1:
                 st.divider()
                 with st.expander(
                     f"📂 {T('timeline_per_file_header')} ({len(_src_files)} {T('timeline_per_file_files')})",
-                    expanded=False,
+                    expanded=True,
                 ):
                     st.caption(T("timeline_per_file_caption"))
 
-                    # Checkboxes to choose which files to download (scalable to 50+)
+                    # ── Checkbox grid (3 columns, scales to 50+ files) ────────
                     _pf_selected = []
-                    _pf_cols = st.columns(min(3, len(_src_files)))
+                    _n_pf_cols = min(3, len(_src_files))
+                    _pf_grid = st.columns(_n_pf_cols)
                     for _pf_i, _pf_name in enumerate(_src_files):
                         _pf_stem = _pl_ex.Path(_pf_name).stem
-                        _pf_n = int((_r["_source_file"] == _pf_name).sum())
-                        _col_idx = _pf_i % len(_pf_cols)
-                        if _pf_cols[_col_idx].checkbox(
+                        _pf_n    = int((_r["_source_file"] == _pf_name).sum())
+                        if _pf_grid[_pf_i % _n_pf_cols].checkbox(
                             f"**{_pf_stem}** ({_pf_n:,} seqs)",
                             value=True,
-                            key=f"tl_pf_check_{_pf_i}",
+                            key=f"tl_pf_chk_{_pf_i}",
                         ):
                             _pf_selected.append(_pf_name)
 
                     if _pf_selected:
                         st.markdown(f"**{T('timeline_per_file_download_label')}:**")
-                        for _pf_name in _pf_selected:
-                            _pf_stem = _pl_ex.Path(_pf_name).stem
-                            _pf_df = _r[_r["_source_file"] == _pf_name].copy()
-                            _pf_c1, _pf_c2 = st.columns(2)
-                            # FASTA
-                            try:
-                                from utils.gisaid_parser import convert_df_to_fasta
-                                _pf_fasta = convert_df_to_fasta(_pf_df)
-                            except Exception:
-                                _pf_lines = []
-                                for _, _pfr in _pf_df.iterrows():
-                                    _pf_lines.append(f">{_pfr.get('isolate', _pfr.get('sequence_hash', 'seq'))}")
-                                    _pf_lines.append(_pfr.get("sequence", ""))
-                                _pf_fasta = "\n".join(_pf_lines).encode("utf-8")
-                            _pf_c1.download_button(
-                                label=f"FASTA — {_pf_stem} ({len(_pf_df):,})",
-                                data=_pf_fasta,
-                                file_name=f"{_pf_stem}_timeline.fasta",
-                                mime="text/plain",
-                                use_container_width=True,
-                                key=f"tl_pf_fasta_{_pf_i}",
-                            )
-                            # Metadata CSV
-                            _pf_meta_cols = [c for c in _pf_df.columns if c not in ("sequence", "_source_file")]
-                            _pf_c2.download_button(
-                                label=f"CSV — {_pf_stem}",
-                                data=_pf_df[_pf_meta_cols].to_csv(index=False).encode("utf-8-sig"),
-                                file_name=f"{_pf_stem}_timeline_metadata.csv",
-                                mime="text/csv",
-                                use_container_width=True,
-                                key=f"tl_pf_csv_{_pf_i}",
-                            )
+                        # ── Build a single ZIP with FASTA + CSV for each file ─
+                        import io as _io_pf, zipfile as _zf_pf
+                        _zip_buf = _io_pf.BytesIO()
+                        with _zf_pf.ZipFile(_zip_buf, "w", _zf_pf.ZIP_DEFLATED) as _zf:
+                            for _pf_name in _pf_selected:
+                                _pf_stem = _pl_ex.Path(_pf_name).stem
+                                _pf_df   = _r[_r["_source_file"] == _pf_name].copy()
+                                # FASTA
+                                try:
+                                    from utils.gisaid_parser import convert_df_to_fasta
+                                    _pf_fasta_bytes = convert_df_to_fasta(_pf_df)
+                                except Exception:
+                                    _pf_lines = []
+                                    for _, _pfr in _pf_df.iterrows():
+                                        _pf_lines.append(f">{_pfr.get('isolate', _pfr.get('sequence_hash', 'seq'))}")
+                                        _pf_lines.append(_pfr.get("sequence", ""))
+                                    _pf_fasta_bytes = "\n".join(_pf_lines).encode("utf-8")
+                                _zf.writestr(f"{_pf_stem}_timeline.fasta",
+                                             _pf_fasta_bytes if isinstance(_pf_fasta_bytes, (bytes, bytearray)) else _pf_fasta_bytes)
+                                # Metadata CSV (no sequence col, no _source_file col)
+                                _pf_meta_cols = [c for c in _pf_df.columns
+                                                 if c not in ("sequence", "_source_file")]
+                                _zf.writestr(
+                                    f"{_pf_stem}_timeline_metadata.csv",
+                                    _pf_df[_pf_meta_cols].to_csv(index=False),
+                                )
+                        _zip_buf.seek(0)
+                        _zip_label = (
+                            f"⬇ ZIP — {len(_pf_selected)} {T('timeline_per_file_files')} "
+                            f"(FASTA + CSV each)"
+                        )
+                        st.download_button(
+                            label=_zip_label,
+                            data=_zip_buf.getvalue(),
+                            file_name=f"{_auto_stem}_per_file_export.zip",
+                            mime="application/zip",
+                            use_container_width=True,
+                            key="tl_pf_zip_dl",
+                        )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Per-page sidebar
