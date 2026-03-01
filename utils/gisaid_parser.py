@@ -70,7 +70,9 @@ def parse_gisaid_fasta(file_content: str, file_name: str) -> tuple:
         if line.startswith(">"):
             # Flush previous record
             if current_header is not None:
-                seq = "".join(current_seq_parts).upper().replace(" ", "")
+                # Strip alignment gap characters (-) so .aln-fasta files
+                # (Clustal Omega MSA output) compute correct lengths and hashes.
+                seq = "".join(current_seq_parts).upper().replace(" ", "").replace("-", "")
                 metadata = _parse_header(current_header)
                 metadata["sequence"] = seq
                 metadata["sequence_length"] = len(seq)
@@ -83,7 +85,7 @@ def parse_gisaid_fasta(file_content: str, file_name: str) -> tuple:
 
     # Flush last record
     if current_header is not None:
-        seq = "".join(current_seq_parts).upper().replace(" ", "")
+        seq = "".join(current_seq_parts).upper().replace(" ", "").replace("-", "")
         metadata = _parse_header(current_header)
         metadata["sequence"] = seq
         metadata["sequence_length"] = len(seq)
@@ -119,7 +121,7 @@ def decompress_if_needed(raw_bytes: bytes, file_name: str) -> str:
             return gzip.decompress(raw_bytes).decode("utf-8", errors="replace")
         if name_lower.endswith(".zip"):
             with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
-                fasta_exts = (".fasta", ".fa", ".fas", ".fna", ".txt")
+                fasta_exts = (".fasta", ".fa", ".fas", ".fna", ".txt", ".aln-fasta")
                 # Filter: keep only FASTA-like members; skip macOS metadata and dotfiles
                 fasta_members = sorted([
                     m for m in zf.namelist()
@@ -156,7 +158,7 @@ def decompress_zip_to_files(raw_bytes: bytes) -> dict:
     result = {}
     try:
         with zipfile.ZipFile(io.BytesIO(raw_bytes)) as zf:
-            fasta_exts = (".fasta", ".fa", ".fas", ".fna", ".txt")
+            fasta_exts = (".fasta", ".fa", ".fas", ".fna", ".txt", ".aln-fasta")
             members = sorted([
                 m for m in zf.namelist()
                 if m.lower().endswith(fasta_exts)
