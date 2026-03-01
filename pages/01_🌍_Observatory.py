@@ -227,24 +227,47 @@ if _active_df.empty:
         </span>
     </div>
     <div style="display:flex; gap:1.2rem; justify-content:center; flex-wrap:wrap;">
-        <div style="flex:1; min-width:260px; max-width:420px;
+        <div style="flex:1; min-width:240px; max-width:380px;
                     background:#eff6ff; border-left:4px solid #0891b2;
                     border-radius:8px; padding:1rem 1.2rem;">
             <div style="font-size:.78rem; color:#0891b2; font-weight:700;
                         margin-bottom:.5rem;">🫁 {T('welcome_hrsv_format_label')}</div>
-            <code style="font-size:.72rem; color:#0369a1; background:rgba(255,255,255,.6);
+            <code style="font-size:.70rem; color:#0369a1; background:rgba(255,255,255,.6);
                          padding:.3rem .5rem; border-radius:4px; display:block;
                          word-break:break-all; line-height:1.6; white-space:normal;">&#62;Isolate_Name|GISAID_Accession|Collection_Date</code>
         </div>
-        <div style="flex:1; min-width:260px; max-width:420px;
+        <div style="flex:1; min-width:240px; max-width:380px;
                     background:#ecfdf5; border-left:4px solid #059669;
                     border-radius:8px; padding:1rem 1.2rem;">
             <div style="font-size:.78rem; color:#059669; font-weight:700;
                         margin-bottom:.5rem;">🐦 {T('welcome_flu_format_label')}</div>
-            <code style="font-size:.67rem; color:#065f46; background:rgba(255,255,255,.6);
+            <code style="font-size:.65rem; color:#065f46; background:rgba(255,255,255,.6);
                          padding:.3rem .5rem; border-radius:4px; display:block;
                          word-break:break-all; line-height:1.6; white-space:normal;">&#62;Isolate_Name|Virus_Type/Subtype|Gene_Segment|Collection_Date|GISAID_Accession|Clade</code>
         </div>
+        <div style="flex:1; min-width:240px; max-width:380px;
+                    background:#f5f3ff; border-left:4px solid #7c3aed;
+                    border-radius:8px; padding:1rem 1.2rem;">
+            <div style="font-size:.78rem; color:#7c3aed; font-weight:700;
+                        margin-bottom:.5rem;">🧬 {T('welcome_aln_format_label')}</div>
+            <code style="font-size:.65rem; color:#5b21b6; background:rgba(255,255,255,.6);
+                         padding:.3rem .5rem; border-radius:4px; display:block;
+                         word-break:break-all; line-height:1.6; white-space:normal;">&#62;Isolate_Name|Subtype|Segment|Date|Accession|Clade<br>ATGCGT---ATCG--GCTAA&nbsp;(gaps stripped automatically)</code>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Supported segments note ────────────────────────────────────────────
+    st.markdown(f"""
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;
+                padding:.7rem 1.2rem; margin-top:.8rem; margin-bottom:.4rem;">
+        <span style="font-weight:700; color:#1e3a8a; font-size:.85rem;">
+            🧬 {T('welcome_segments_note_title')}:
+        </span>
+        <span style="color:#475569; font-size:.84rem; margin-left:.4rem;">
+            HA · NA · PB2 · PB1 · PA · NP · MP · NS · HE · P3
+            — {T('welcome_segments_note_suffix')}
+        </span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -365,12 +388,13 @@ with st.expander(f"ℹ️ {T('obs_platform_overview')}", expanded=False):
 with st.sidebar:
     st.divider()
     st.markdown(f"**{T('sidebar_obs_sections')}**")
-    _show_kpis   = st.checkbox(T("sidebar_obs_kpis"),    value=True, key="obs_show_kpis")
-    _show_gauges = st.checkbox(T("sidebar_obs_gauges"),  value=True, key="obs_show_gauges")
-    _show_epi    = st.checkbox(T("sidebar_obs_epi"),     value=True, key="obs_show_epi")
-    _show_locs   = st.checkbox(T("sidebar_obs_locs"),    value=True, key="obs_show_locs")
-    _show_clades = st.checkbox(T("sidebar_obs_clades"),  value=True, key="obs_show_clades")
-    _show_batch  = st.checkbox(T("sidebar_obs_batch"),   value=True, key="obs_show_batch")
+    _show_kpis       = st.checkbox(T("sidebar_obs_kpis"),        value=True,  key="obs_show_kpis")
+    _show_gauges     = st.checkbox(T("sidebar_obs_gauges"),      value=True,  key="obs_show_gauges")
+    _show_epi        = st.checkbox(T("sidebar_obs_epi"),         value=True,  key="obs_show_epi")
+    _show_locs       = st.checkbox(T("sidebar_obs_locs"),        value=True,  key="obs_show_locs")
+    _show_clades     = st.checkbox(T("sidebar_obs_clades"),      value=True,  key="obs_show_clades")
+    _show_batch      = st.checkbox(T("sidebar_obs_batch"),       value=True,  key="obs_show_batch")
+    _show_new_charts = st.checkbox(T("sidebar_obs_new_charts"),  value=False, key="obs_show_new_charts")
 
 # ── Row 1: Core KPIs ─────────────────────────────────────────────────────────
 if _show_kpis:
@@ -584,6 +608,166 @@ if _show_clades and _clade_col in _display_df.columns:
         st.plotly_chart(fig, use_container_width=True)
     except ImportError:
         st.dataframe(top_clade, use_container_width=True, hide_index=True)
+
+# ── Extended Epidemiological Charts ──────────────────────────────────────────
+if _show_new_charts and _PLOTLY:
+    import plotly.express as _px_ext
+    import plotly.graph_objects as _go_ext
+
+    st.divider()
+    st.subheader(f"🔬 {T('obs_new_charts_header')}")
+    _nc_tab1, _nc_tab2, _nc_tab3 = st.tabs([
+        T("obs_sankey_header"),
+        T("obs_icicle_header"),
+        T("obs_3d_header"),
+    ])
+
+    # ── Tab 1: Sankey — Host → Subtype → Clade flow ─────────────────────
+    with _nc_tab1:
+        st.caption(T("obs_sankey_header"))
+        if "host" in _display_df.columns and "subtype_clean" in _display_df.columns:
+            try:
+                _san_df = _display_df[["host", "subtype_clean"]].dropna().head(8000)
+                _host_v = _san_df["host"].value_counts().head(6).index.tolist()
+                _sub_v  = _san_df["subtype_clean"].value_counts().head(8).index.tolist()
+
+                _clade_v = []
+                _san_df2 = pd.DataFrame()
+                if "clade_l1" in _display_df.columns:
+                    _san_df2 = _display_df[["subtype_clean", "clade_l1"]].dropna().head(8000)
+                    _clade_v = _san_df2["clade_l1"].value_counts().head(6).index.tolist()
+
+                _san_nodes  = _host_v + _sub_v + _clade_v
+                _san_ni     = {n: i for i, n in enumerate(_san_nodes)}
+                _san_colors = (
+                    ["#0891b2"] * len(_host_v)
+                    + ["#10b981"] * len(_sub_v)
+                    + ["#8b5cf6"] * len(_clade_v)
+                )
+                _san_links = []
+
+                _h2s = _san_df[_san_df["host"].isin(_host_v) & _san_df["subtype_clean"].isin(_sub_v)]
+                for (h, s), cnt in _h2s.groupby(["host", "subtype_clean"]).size().items():
+                    _san_links.append({"s": _san_ni[h], "t": _san_ni[s], "v": int(cnt)})
+
+                if _clade_v and not _san_df2.empty:
+                    _s2c = _san_df2[_san_df2["subtype_clean"].isin(_sub_v) & _san_df2["clade_l1"].isin(_clade_v)]
+                    for (s, c), cnt in _s2c.groupby(["subtype_clean", "clade_l1"]).size().items():
+                        _san_links.append({"s": _san_ni[s], "t": _san_ni[c], "v": int(cnt)})
+
+                if _san_links:
+                    _san_fig = _go_ext.Figure(_go_ext.Sankey(
+                        node=dict(
+                            label=_san_nodes, color=_san_colors,
+                            pad=15, thickness=20,
+                            hovertemplate="%{label}<br>%{value} sequences<extra></extra>",
+                        ),
+                        link=dict(
+                            source=[l["s"] for l in _san_links],
+                            target=[l["t"] for l in _san_links],
+                            value=[l["v"] for l in _san_links],
+                        ),
+                    ))
+                    _san_fig.update_layout(
+                        height=430, paper_bgcolor="rgba(0,0,0,0)",
+                        margin=dict(t=10, b=10, l=10, r=10),
+                        font=dict(size=11),
+                    )
+                    st.plotly_chart(_san_fig, use_container_width=True)
+                else:
+                    st.info(T("obs_sankey_no_data"))
+            except Exception as _san_err:
+                st.warning(f"Sankey error: {_san_err}")
+        else:
+            st.info(T("obs_sankey_no_data"))
+
+    # ── Tab 2: Icicle — Segment → Subtype → Clade ───────────────────────
+    with _nc_tab2:
+        st.caption(T("obs_icicle_header"))
+        _ic_avail = [c for c in ["segment", "subtype_clean", "clade_l1"] if c in _display_df.columns]
+        if _ic_avail:
+            try:
+                _ic_df = _display_df[_ic_avail].dropna(how="all").head(5000).fillna("Unknown")
+                _ic_path = [c for c in ["segment", "subtype_clean", "clade_l1"] if c in _ic_avail]
+                if _ic_path:
+                    _ic_agg = _ic_df.groupby(_ic_path).size().reset_index(name="count")
+                    _ic_fig = _px_ext.icicle(
+                        _ic_agg, path=_ic_path, values="count",
+                        color="count", color_continuous_scale="Viridis",
+                    )
+                    _ic_fig.update_traces(
+                        textinfo="label+value+percent parent",
+                        root_color="rgba(0,0,0,0)",
+                    )
+                    _ic_fig.update_layout(
+                        height=440, paper_bgcolor="rgba(0,0,0,0)",
+                        margin=dict(t=10, b=10, l=10, r=10),
+                        coloraxis_showscale=False,
+                    )
+                    st.plotly_chart(_ic_fig, use_container_width=True)
+            except Exception as _ic_err:
+                st.warning(f"Icicle error: {_ic_err}")
+        else:
+            st.info(T("obs_icicle_no_data"))
+
+    # ── Tab 3: 3D Scatter — Year × Sequence Length × Segment ────────────
+    with _nc_tab3:
+        st.caption(T("obs_3d_header"))
+        if "collection_date" in _display_df.columns and "sequence_length" in _display_df.columns:
+            try:
+                _sc3d = _display_df.copy()
+                _sc3d["_year_f"] = pd.to_datetime(
+                    _sc3d["collection_date"], errors="coerce"
+                ).dt.year.astype("Int64")
+                _sc3d = _sc3d.dropna(subset=["_year_f", "sequence_length"])
+
+                # Encode segment as integer for Z axis
+                _SEG_ORDER = ["PB2", "PB1", "PA", "HA", "NP", "NA", "MP", "NS", "HE", "P3"]
+                if "segment" in _sc3d.columns:
+                    _seg_enc = {s: i + 1 for i, s in enumerate(_SEG_ORDER)}
+                    _sc3d["_seg_z"] = _sc3d["segment"].map(_seg_enc).fillna(0)
+                    _z_col, _z_lbl = "_seg_z", T("obs_3d_z")
+                    _z_tick_text   = _SEG_ORDER
+                    _z_tick_vals   = list(range(1, len(_SEG_ORDER) + 1))
+                else:
+                    _z_col, _z_lbl = "sequence_length", T("obs_3d_y")
+                    _z_tick_text, _z_tick_vals = None, None
+
+                _clr = "subtype_clean" if "subtype_clean" in _sc3d.columns else None
+                _hn  = "isolate" if "isolate" in _sc3d.columns else None
+
+                # Sample for render performance
+                _sc3d_s = _sc3d.sample(min(3000, len(_sc3d)), random_state=42)
+
+                _fig_3d = _px_ext.scatter_3d(
+                    _sc3d_s, x="_year_f", y="sequence_length", z=_z_col,
+                    color=_clr, hover_name=_hn, opacity=0.65, height=520,
+                    labels={
+                        "_year_f": T("obs_3d_x"),
+                        "sequence_length": T("obs_3d_y"),
+                        _z_col: _z_lbl,
+                    },
+                )
+                _fig_3d.update_traces(marker=dict(size=3))
+                _layout_3d = dict(
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    scene=dict(
+                        xaxis_title=T("obs_3d_x"),
+                        yaxis_title=T("obs_3d_y"),
+                        zaxis_title=_z_lbl,
+                    ),
+                    margin=dict(t=10, b=10, l=10, r=10),
+                )
+                if _z_tick_text:
+                    _layout_3d["scene"]["zaxis"] = dict(
+                        ticktext=_z_tick_text, tickvals=_z_tick_vals,
+                    )
+                _fig_3d.update_layout(**_layout_3d)
+                st.plotly_chart(_fig_3d, use_container_width=True)
+            except Exception as _3d_err:
+                st.warning(f"3D scatter error: {_3d_err}")
+        else:
+            st.info(T("obs_3d_no_data"))
 
 # ── Batch Source Overview ─────────────────────────────────────────────────────
 _raw_files = st.session_state.get("raw_files", [])

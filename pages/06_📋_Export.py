@@ -456,6 +456,90 @@ st.divider()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# SECTION 2b — Segment Folder Structure
+# ─────────────────────────────────────────────────────────────────────────────
+with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
+    st.caption(T("export_seg_folder_caption"))
+
+    _ALL_SEGMENTS = ["HA", "NA", "PB2", "PB1", "PA", "NP", "MP", "NS", "HE", "P3"]
+
+    _seg_zname_col, _ = st.columns([2, 3])
+    with _seg_zname_col:
+        _seg_zip_name = st.text_input(
+            T("export_seg_folder_zip_name"),
+            value=f"{_pfx}_segment_folders",
+            max_chars=60,
+            key="export_seg_zip_name",
+            placeholder="project_name_segment_folders",
+        )
+
+    st.caption(T("export_seg_folder_select_segments"))
+    _seg_chk_cols = st.columns(5)
+    _selected_segs = []
+    for _si, _seg in enumerate(_ALL_SEGMENTS):
+        if _seg_chk_cols[_si % 5].checkbox(_seg, value=True, key=f"seg_folder_{_seg}"):
+            _selected_segs.append(_seg)
+
+    _split_into_segs = st.checkbox(
+        T("export_seg_folder_split_data"),
+        value=False,
+        key="export_seg_split_data",
+        help=T("export_seg_folder_split_help"),
+    )
+
+    if _split_into_segs:
+        st.info(T("export_seg_folder_split_info"), icon="ℹ️")
+
+    if st.button(T("export_seg_folder_generate"),
+                 type="primary", use_container_width=False,
+                 key="export_seg_gen"):
+        if not _selected_segs:
+            st.warning(T("export_seg_folder_none_selected"))
+        else:
+            _seg_zbuf = io.BytesIO()
+            with zipfile.ZipFile(_seg_zbuf, "w", zipfile.ZIP_DEFLATED) as _seg_zf:
+                for _seg in _selected_segs:
+                    # Always create an empty folder placeholder
+                    _seg_zf.writestr(f"{_seg}/.gitkeep", "")
+                    if _split_into_segs and "segment" in _export_df.columns:
+                        _seg_subset = _export_df[
+                            _export_df["segment"].str.upper() == _seg.upper()
+                        ]
+                        if not _seg_subset.empty:
+                            try:
+                                _seg_fasta = convert_df_to_fasta(_seg_subset)
+                                _seg_zf.writestr(
+                                    f"{_seg}/{_pfx}_{_seg}.fasta",
+                                    _seg_fasta if isinstance(_seg_fasta, bytes)
+                                    else _seg_fasta.encode("utf-8"),
+                                )
+                                _seg_csv_str = (
+                                    _seg_subset.drop(columns=["sequence"], errors="ignore")
+                                    .to_csv(index=False)
+                                )
+                                _seg_zf.writestr(
+                                    f"{_seg}/{_pfx}_{_seg}_metadata.csv", _seg_csv_str
+                                )
+                            except Exception:
+                                pass
+            _seg_zbuf.seek(0)
+            _seg_fname = (
+                re.sub(r"[^\w\-]", "_", (_seg_zip_name or "segment_folders").strip())[:60]
+                or "segment_folders"
+            ) + ".zip"
+            st.download_button(
+                label=T("export_seg_folder_download", n=len(_selected_segs)),
+                data=_seg_zbuf.getvalue(),
+                file_name=_seg_fname,
+                mime="application/zip",
+                use_container_width=False,
+                key="dl_seg_folder_zip",
+            )
+
+st.divider()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # SECTION 3 — Accession Extraction
 # ─────────────────────────────────────────────────────────────────────────────
 with st.expander(f"🔑 {T('export_accession_header')}"):

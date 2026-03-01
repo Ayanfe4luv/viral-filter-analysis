@@ -25,8 +25,12 @@ _QUICKSTART = {
     "en": """\
 ### Step 1 — 📁 Upload Your Data
 Navigate to **Workspace** in the sidebar. Click *File Upload*, drag-and-drop
-your `.fasta`, `.fa`, `.fas`, `.fna`, `.txt`, or `.gz` file, then wait
-for the success banner. Your file is now in the session.
+your `.fasta`, `.fa`, `.fas`, `.fna`, `.txt`, `.gz`, or `.aln-fasta` file,
+then wait for the success banner. Your file is now in the session.
+
+> **Alignment files (`.aln-fasta` / `.aln`):** Clustal Omega MSA output is
+> fully supported. Gap characters (`-`) are stripped automatically before
+> length and hash computation, so all downstream analytics are unaffected.
 
 ### Step 2 — ✅ Activate the Dataset
 Scroll down to **Loaded Datasets**. A stats table shows each file's sequence
@@ -50,16 +54,31 @@ clone-persistence and overwintering analysis. All three analysis pages show
 a **📁 File Scope** selector when multiple source files are active — pick
 any file to narrow every chart and filter to that file only.
 
+The **Observatory** (this page, when data is active) offers a live KPI
+dashboard plus three advanced visualizations accessible via the sidebar
+checkbox: **Sankey flow** (Host → Subtype → Clade), **Icicle hierarchy**
+(Segment → Subtype → Clade), and a **3D Scatter** (Year × Length × Segment).
+
 ### Step 5 — 📋 Export
 Go to **Export** to download the final FASTA, a CSV of metadata, a
 methodology JSON, or a ZIP bundle of all three. Use *Split & Export* to
 create one FASTA file per subtype / clade / host automatically.
+
+> **Segment Folder Structure:** The Export page includes a dedicated section
+> to generate a ZIP archive pre-populated with empty segment folders
+> (HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3). Optionally tick *Also split
+> dataset into segment folders* to auto-populate each folder with its FASTA
+> and CSV files.
 """,
     "ru": """\
 ### Шаг 1 — 📁 Загрузите данные
 Перейдите в **Рабочее пространство** на боковой панели. Нажмите *Загрузка
-файла*, перетащите `.fasta`, `.fa`, `.gz`, `.txt` или другой поддерживаемый
-файл, дождитесь зелёного баннера успеха.
+файла*, перетащите `.fasta`, `.fa`, `.gz`, `.txt`, `.aln-fasta` или другой
+поддерживаемый файл, дождитесь зелёного баннера успеха.
+
+> **Файлы выравнивания (`.aln-fasta` / `.aln`):** вывод Clustal Omega
+> полностью поддерживается. Символы пропусков (`-`) удаляются автоматически
+> перед вычислением длины и хеша, поэтому вся аналитика остаётся корректной.
 
 ### Шаг 2 — ✅ Активируйте набор данных
 Прокрутите до раздела **Загруженные наборы**. Таблица показывает для
@@ -83,10 +102,20 @@ create one FASTA file per subtype / clade / host automatically.
 анализа показывают селектор **📁 Scope** — выберите файл для фокусировки
 всех графиков и фильтров.
 
+**Обсерватория** (при наличии активного набора данных) предлагает дашборд
+ключевых метрик и три расширенных визуализации (флажок на боковой панели):
+**диаграмма Санки** (Хозяин → Субтип → Клад), **диаграмма-сосулька**
+(Сегмент → Субтип → Клад) и **3D-разброс** (Год × Длина × Сегмент).
+
 ### Шаг 5 — 📋 Экспорт
 Перейдите в **Экспорт** для скачивания итогового FASTA, CSV с метаданными,
 JSON методологии или ZIP-архива. *Разделить и экспортировать* создаёт один
 FASTA-файл на субтип / клад / хозяина автоматически.
+
+> **Структура папок сегментов:** раздел *Структура папок сегментов* создаёт
+> ZIP-архив с пустыми папками (HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3).
+> Установив флажок *Разбить данные по папкам сегментов*, данные автоматически
+> распределяются по соответствующим папкам в FASTA и CSV.
 """,
 }
 
@@ -94,20 +123,22 @@ _FEATURE_TABLE = {
     "en": """\
 | Page | Key Actions | Notes |
 |------|-------------|-------|
-| **📁 Workspace** | File upload, URL download, Google Drive; per-file stats table (subtypes, segments, date span); Select All / ⚡ Activate All; merge | Activate before any other step; multiple files merged at once |
+| **🌍 Observatory** | Live KPI dashboard (sequence count, avg length, subtypes, date span); epidemic curve; top subtypes/hosts/segments/locations/clades; Sankey flow, Icicle hierarchy, 3D Scatter (via sidebar checkbox) | Landing page when no data loaded; auto-switches to dashboard when dataset is active |
+| **📁 Workspace** | File upload (`.fasta` `.fa` `.gz` `.zip` `.aln-fasta`); per-file stats table (subtypes, segments, date span); Select All / ⚡ Activate All; merge | Activate before any other step; multiple files merged at once |
 | **🔬 Sequence Refinery** | Min/max length, N-run filter, dedup, subtype/clade/date/host/location filters, HITL Smart Sampler; **📁 per-file scope** | Scope selector focuses all filters on one source file |
 | **🧬 Molecular Timeline** | Clone persistence matrix, per-month representative selection, diagnostics, methodology snapshot; **📁 per-file scope** | Needs `sequence_hash`; scope analyses each file's clusters independently |
 | **📊 Analytics** | 10+ chart types, custom palettes, dataset-overview gauges (count, avg length, completeness); **📁 per-file scope** | Scope selector narrows all charts to one source file |
-| **📋 Export** | FASTA, CSV, JSON, ZIP bundle, accession list (.txt), session log, split-by-group export; per-source-file downloads | Always export before closing the browser |
+| **📋 Export** | FASTA, CSV, JSON, ZIP bundle, accession list (.txt), session log, split-by-group export; Segment Folder Structure ZIP (HA/NA/PB2/PB1/PA/NP/MP/NS/HE/P3); per-source-file downloads | Always export before closing the browser |
 """,
     "ru": """\
 | Страница | Ключевые действия | Примечания |
 |----------|-------------------|-----------|
-| **📁 Рабочее пространство** | Загрузка файла, URL, Google Drive; таблица статистики по файлам; Выбрать всё / ⚡ Активировать всё; слияние | Сначала активируйте; несколько файлов объединяются сразу |
+| **🌍 Обсерватория** | Дашборд КПЭ (количество, средняя длина, субтипы, диапазон дат); эпидемическая кривая; топ субтипов/хозяев/сегментов/местоположений/кладов; диаграмма Санки, иерархия-сосулька, 3D-разброс (флажок в боковой панели) | Целевая страница без данных; автопереключается в дашборд при активном наборе |
+| **📁 Рабочее пространство** | Загрузка файла (`.fasta` `.fa` `.gz` `.zip` `.aln-fasta`); таблица статистики; Выбрать всё / ⚡ Активировать всё; слияние | Сначала активируйте; несколько файлов объединяются сразу |
 | **🔬 Очиститель последовательностей** | Мин./макс. длина, N-серии, дедупликация, фильтры по субтипу/кладу/дате/хозяину, сэмплер HITL; **📁 scope по файлу** | Scope фокусирует все фильтры на одном исходном файле |
 | **🧬 Молекулярная временная шкала** | Матрица устойчивости клонов, представители по месяцам, диагностика; **📁 scope по файлу** | Нужен `sequence_hash`; scope анализирует кластеры каждого файла отдельно |
 | **📊 Аналитика** | 10+ типов диаграмм, палитры, датасет-метрики; **📁 scope по файлу** | Scope сужает все графики до одного исходного файла |
-| **📋 Экспорт** | FASTA, CSV, JSON, ZIP, список аккессий (.txt), журнал сессии, экспорт по группам; загрузка по исходным файлам | Обязательно экспортируйте перед закрытием браузера |
+| **📋 Экспорт** | FASTA, CSV, JSON, ZIP, список аккессий (.txt), журнал сессии, экспорт по группам; структура папок сегментов (HA/NA/PB2/PB1/PA/NP/MP/NS/HE/P3); загрузка по исходным файлам | Обязательно экспортируйте перед закрытием браузера |
 """,
 }
 
@@ -244,7 +275,7 @@ your GISAID download.
 |---|-------|---------|--------|
 | 1 | **Isolate Name** | `A/duck/Bangladesh/33676/2017` | A/Host/Location/ID/Year |
 | 2 | **Type / Subtype** | `A_/_H4N6` | `A_/_HxNy` or `A/HxNy` |
-| 3 | **Segment** | `PA` | HA, NA, PA, PB1, PB2, NP, MP, NS |
+| 3 | **Segment** | `PA` | HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3 |
 | 4 | **Date** | `2017-09-28` | YYYY-MM-DD, YYYY-MM, YYYY, or unknown |
 | 5 | **Accession** | `EPI_ISL_329573` | EPI_ISL_XXXXXXX |
 | 6 | **Clade** | `6B.1A.5a.2a.1` | Any format, empty, or `unassigned` |
@@ -279,7 +310,7 @@ your GISAID download.
 |---|-------|----------|-------|
 | 1 | **Strain name** | `A/Novosibirsk/RII-7.429/2024` · `B/Victoria/2/1987` | Full GISAID-style isolate name |
 | 2 | **Type / Subtype** | `A/_H3N2` · `A/_H1N1` · `B` | Flu A uses `A/_HxNx`; Flu B has no subtype — write `B` |
-| 3 | **Segment** | `HA` · `NA` · `NP` · `MP` · `PA` | Any of the 8 influenza gene segments |
+| 3 | **Segment** | `HA` · `NA` · `PB2` · `PB1` · `PA` · `NP` · `MP` · `NS` · `HE` · `P3` | Any of the 10 influenza gene segments |
 | 4 | **Collection date** | `2024-01-17` · `2009-04-09` · `1987` | ISO 8601 preferred; year-only (`YYYY`) also accepted |
 | 5 | **Accession** | `EPI_ISL_19324838` · `EPI_ISL19324838` | With or without underscore between ISL and digits — both parsed |
 | 6 | **Clade** | `3C.2a1b.2a.2a.3a.1` · `V1A.3a.2` · `6B.1A` | Nextclade / GISAID phylogenetic label |
@@ -298,7 +329,7 @@ your GISAID download.
 | Observation | Detail |
 |-------------|--------|
 | **Multi-subtype surveillance** | H3N2 (NP, PA), H1N1 (HA), and Flu B (MP, NA) coexist — use Subtype filter to isolate any one |
-| **Multi-segment dataset** | NP, MP, HA, NA, PA all present — use Segment filter before phylogenetic analysis |
+| **Multi-segment dataset** | NP, MP, HA, NA, PA all present — use Segment filter before phylogenetic analysis. All 10 segments (HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3) are supported |
 | **Year-only date** | `B/Victoria/2/1987` has just `1987` — parsed as Jan 1st 1987; appears correctly in temporal charts |
 | **Accession without underscore** | `EPI_ISL19324838` (no `_` between ISL and digits) — the parser normalises both formats |
 | **Flu B without subtype** | Second field is simply `B` — no H/N designation needed for influenza B |
@@ -312,12 +343,36 @@ your GISAID download.
 
 ---
 
+---
+
+## 🧬 Alignment Format (.aln-fasta)
+
+VirSift natively accepts **Clustal Omega MSA output** in `.aln-fasta` format.
+These files use the same GISAID pipe-delimited headers, but sequences contain
+alignment gap characters (`-`).
+
+**How VirSift handles alignment files:**
+- Gap characters (`-`) are stripped from every sequence before parsing
+- `sequence_length` and `sequence_hash` are computed on the gap-free sequence
+- All downstream filters, deduplication and analytics work identically to standard FASTA
+
+**Example valid `.aln-fasta` record:**
+```fasta
+>A/California/07/2009|A/_H1N1|HA|2009-04-09|EPI_ISL_29553|6B.1A
+ATGAAAGC----AATTTTTAGT--CTAATTTTG-CTGGTTCTAACATGGCCTCAGAC
+```
+
+**Supported segments in alignment files:** HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3
+
+---
+
 ## ⚠️ Common Issues
 
 - **Missing pipes**: If headers use spaces or commas, run the *Header Converter* in Sequence Refinery.
 - **Year-only dates in temporal charts**: Sequences with only `YYYY` dates will cluster at month 1 — expected behaviour.
 - **Blank segments**: Write `||` (empty field) rather than `N/A` — the parser treats "N/A" as a segment name.
 - **Mixed accession formats**: Both `EPI_ISL_12345` and `EPI_ISL12345` are valid; the accession extractor handles both.
+- **HE and P3 segments**: These segments are less common (influenza C/D). VirSift parses them from the header field — no special configuration needed.
 
 > 📄 For the complete format specification, see **1 FASTA Header Format Guide - Complete Reference.pdf** (included in the project download).
 """,
@@ -367,7 +422,7 @@ VirSift поддерживает **формат GISAID с вертикально
 |---|------|--------|--------|
 | 1 | **Название изолята** | `A/duck/Bangladesh/33676/2017` | A/Хозяин/Место/ID/Год |
 | 2 | **Тип / Субтип** | `A_/_H4N6` | `A_/_HxNy` или `A/HxNy` |
-| 3 | **Сегмент** | `PA` | HA, NA, PA, PB1, PB2, NP, MP, NS |
+| 3 | **Сегмент** | `PA` | HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3 |
 | 4 | **Дата** | `2017-09-28` | ГГГГ-ММ-ДД, ГГГГ-ММ, ГГГГ или unknown |
 | 5 | **Аккессия** | `EPI_ISL_329573` | EPI_ISL_XXXXXXX |
 | 6 | **Клад** | `6B.1A.5a.2a.1` | Любой формат, пустое или `unassigned` |
@@ -402,7 +457,7 @@ VirSift поддерживает **формат GISAID с вертикально
 |---|------|---------|-----------|
 | 1 | **Название штамма** | `A/Novosibirsk/RII-7.429/2024` · `B/Victoria/2/1987` | Полное название изолята в стиле GISAID |
 | 2 | **Тип / Субтип** | `A/_H3N2` · `A/_H1N1` · `B` | Для гриппа А — `A/_HxNx`; для гриппа В — просто `B` |
-| 3 | **Сегмент** | `HA` · `NA` · `NP` · `MP` · `PA` | Любой из 8 генных сегментов гриппа |
+| 3 | **Сегмент** | `HA` · `NA` · `PB2` · `PB1` · `PA` · `NP` · `MP` · `NS` · `HE` · `P3` | Любой из 10 генных сегментов гриппа |
 | 4 | **Дата сбора** | `2024-01-17` · `2009-04-09` · `1987` | ISO 8601; только год (`ГГГГ`) тоже принимается |
 | 5 | **Аккессия** | `EPI_ISL_19324838` · `EPI_ISL19324838` | С подчёркиванием и без — оба варианта поддерживаются |
 | 6 | **Клад** | `3C.2a1b.2a.2a.3a.1` · `V1A.3a.2` · `6B.1A` | Метка клада от Nextclade / GISAID |
@@ -421,7 +476,7 @@ VirSift поддерживает **формат GISAID с вертикально
 | Наблюдение | Подробности |
 |------------|-------------|
 | **Мультисубтипный надзор** | H3N2, H1N1 и грипп B сосуществуют — используйте фильтр Субтип |
-| **Многосегментный датасет** | NP, MP, HA, NA, PA — используйте фильтр Сегмент перед анализом |
+| **Многосегментный датасет** | NP, MP, HA, NA, PA — используйте фильтр Сегмент перед анализом. Все 10 сегментов (HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3) поддерживаются |
 | **Дата только год** | `B/Victoria/2/1987` содержит лишь `1987` — разбирается как 1 января 1987 |
 | **Аккессия без подчёркивания** | `EPI_ISL19324838` — парсер нормализует оба варианта |
 | **Грипп B без субтипа** | Второе поле — просто `B`, без обозначения H/N |
@@ -435,12 +490,36 @@ VirSift поддерживает **формат GISAID с вертикально
 
 ---
 
+---
+
+## 🧬 Формат выравнивания (.aln-fasta)
+
+VirSift поддерживает **вывод Clustal Omega MSA** в формате `.aln-fasta`.
+Файлы используют те же заголовки в стиле GISAID с вертикальной чертой, но
+последовательности содержат символы выравнивания (`-`).
+
+**Как VirSift обрабатывает файлы выравнивания:**
+- Символы пропусков (`-`) удаляются из каждой последовательности перед разбором
+- `sequence_length` и `sequence_hash` вычисляются по последовательности без пропусков
+- Все последующие фильтры, дедупликация и аналитика работают идентично стандартному FASTA
+
+**Пример допустимой записи `.aln-fasta`:**
+```fasta
+>A/California/07/2009|A/_H1N1|HA|2009-04-09|EPI_ISL_29553|6B.1A
+ATGAAAGC----AATTTTTAGT--CTAATTTTG-CTGGTTCTAACATGGCCTCAGAC
+```
+
+**Поддерживаемые сегменты в файлах выравнивания:** HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3
+
+---
+
 ## ⚠️ Типичные проблемы
 
 - **Отсутствующие вертикальные черты**: Используйте *Конвертер заголовков* в Очистителе.
 - **Только год в дате**: Последовательности с `ГГГГ` будут кластеризованы в месяце 1 — ожидаемое поведение.
 - **Пустые сегменты**: Пишите `||`, а не "N/A" — парсер воспримет "N/A" как название сегмента.
 - **Смешанные форматы аккессий**: Оба варианта `EPI_ISL_12345` и `EPI_ISL12345` допустимы.
+- **Сегменты HE и P3**: Менее распространены (грипп C/D). VirSift разбирает их из заголовка — специальной настройки не требуется.
 
 > 📄 Полная спецификация — **1 FASTA Header Format Guide - Complete Reference.pdf** (включён в загрузку проекта).
 """,
