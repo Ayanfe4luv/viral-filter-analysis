@@ -401,11 +401,18 @@ with st.expander(f"🧠 {T('hitl_header')}"):
         else:
             st.markdown(f"**{len(candidates)} candidate periods detected:**")
             selected_periods = []
+            # Map raw type strings → localised display names
+            _peak_type_map = {
+                "Major Peak":         T("hitl_peak_major"),
+                "Wave Trough":        T("hitl_peak_trough"),
+                "Off-Season Cluster": T("hitl_peak_off_season"),
+            }
             for cand in candidates:
+                _type_disp = _peak_type_map.get(cand["type"], cand["type"])
                 label = (
-                    f"{cand['date']}  —  {cand['count']:,} seqs  "
-                    f"[{cand['type']}"
-                    + (f", rank #{cand['rank']}" if cand.get("rank") else "")
+                    f"{cand['date']}  —  {cand['count']:,} {T('hitl_peak_seqs')}  "
+                    f"[{_type_disp}"
+                    + (f", {T('hitl_peak_rank')} #{cand['rank']}" if cand.get("rank") else "")
                     + "]"
                 )
                 if st.checkbox(label, value=(cand["type"] == "Major Peak"),
@@ -475,8 +482,19 @@ with st.expander(f"🧠 {T('hitl_header')}"):
                 x_range = box_list[0] if box_list else None
 
                 if x_range and "x" in x_range:
-                    x0, x1 = sorted(x_range["x"])
-                    selected_periods = [p for p in ts.index if x0 <= p <= x1]
+                    _raw_x = x_range["x"]
+                    # ts.index is already str from _build_weekly_counts (astype(str))
+                    _ts_strs = ts.index.tolist()
+                    try:
+                        # Plotly categorical bar chart returns float axis indices
+                        # from box selection, NOT the string category values.
+                        _xi0 = max(0, round(float(min(_raw_x))))
+                        _xi1 = min(len(_ts_strs) - 1, round(float(max(_raw_x))))
+                        selected_periods = _ts_strs[_xi0:_xi1 + 1]
+                    except (TypeError, ValueError):
+                        # Fallback: direct string comparison (future Plotly versions)
+                        _x0s, _x1s = sorted(str(v) for v in _raw_x)
+                        selected_periods = [s for s in _ts_strs if _x0s <= s <= _x1s]
                     st.session_state["lasso_zones"] = selected_periods
                 else:
                     selected_periods = st.session_state.get("lasso_zones", [])

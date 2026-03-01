@@ -210,12 +210,14 @@ def _scheme_disp(name: str) -> str:
 
 
 _FIELD_MAP = {
-    T("analytics_field_subtype"):  "subtype_clean",
-    T("analytics_field_host"):     "host",
-    T("analytics_field_segment"):  "segment",
-    T("analytics_field_location"): "location",
-    T("analytics_field_clade"):    "clade",
-    T("analytics_field_year"):     "_year",
+    T("analytics_field_subtype"):   "subtype_clean",
+    T("analytics_field_host"):      "host",
+    T("analytics_field_segment"):   "segment",
+    T("analytics_field_location"):  "location",
+    T("analytics_field_clade"):     "clade",
+    T("analytics_field_clade_l1"):  "clade_l1",       # Broad clade grouping (L1 only)
+    T("analytics_field_year"):      "_year",
+    T("analytics_field_clone"):     "sequence_clone",  # Post-Timeline curated clone name
 }
 
 _CHART_TYPES = {
@@ -234,13 +236,15 @@ _CHART_TYPES = {
 
 # Human-readable display names for raw column names
 _COL_LABELS: dict = {
-    "clade":        T("analytics_field_clade"),
-    "subtype_clean": T("analytics_field_subtype"),
-    "host":         T("analytics_field_host"),
-    "segment":      T("analytics_field_segment"),
-    "location":     T("analytics_field_location"),
-    "_year":        T("analytics_field_year"),
-    "isolate":      "Isolate",
+    "clade":          T("analytics_field_clade"),
+    "subtype_clean":  T("analytics_field_subtype"),
+    "host":           T("analytics_field_host"),
+    "segment":        T("analytics_field_segment"),
+    "location":       T("analytics_field_location"),
+    "clade_l1":       T("analytics_field_clade_l1"),
+    "_year":          T("analytics_field_year"),
+    "sequence_clone": T("analytics_field_clone"),
+    "isolate":        "Isolate",
     "collection_date": "Collection Date",
 }
 
@@ -864,16 +868,27 @@ with ctrl_col:
 
     # ── Parallel Categories ───────────────────────────────────────────────
     elif chart_type == "parallel":
-        all_cat_fields = [v for v in ["subtype_clean", "segment", "host", "clade_l1", "location"]
-                          if v in _df_enriched.columns]
+        # All categorical columns available for parallel categories —
+        # ordered from coarse (host) to fine (full clade).
+        _par_candidates = [
+            "host", "subtype_clean", "segment", "clade_l1",
+            "location", "clade", "_year", "sequence_clone",
+        ]
+        all_cat_fields = [v for v in _par_candidates if v in _df_enriched.columns]
         default_dims = all_cat_fields[:3]
+        # Show human-readable labels in the multiselect
+        _par_label_to_col = {_COL_LABELS.get(v, v): v for v in all_cat_fields}
+        _par_col_to_label = {v: k for k, v in _par_label_to_col.items()}
+        _par_default_labels = [_par_col_to_label.get(c, c) for c in default_dims]
         pc_labels = st.multiselect(
             T("analytics_parallel_dims"),
-            options=all_cat_fields,
-            default=default_dims,
-            max_selections=4,
+            options=list(_par_label_to_col.keys()),
+            default=_par_default_labels,
+            max_selections=6,
             key="an_parallel_dims",
         )
+        # Resolve back to column names for the chart builder
+        all_cat_fields = [_par_label_to_col.get(lbl, lbl) for lbl in pc_labels]
 
     # ── Gantt Range ───────────────────────────────────────────────────────
     elif chart_type == "gantt":
@@ -1110,7 +1125,8 @@ if gen_btn:
                 title = f"{T('analytics_chart_type_bubble')} — {bbl_y_label}"
 
             elif chart_type == "parallel":
-                fig = _make_parallel(_df_enriched, pc_labels if pc_labels else [])
+                # all_cat_fields contains resolved column names (from label→col map)
+                fig = _make_parallel(_df_enriched, all_cat_fields if all_cat_fields else [])
                 title = T("analytics_chart_type_parallel")
 
             elif chart_type == "gantt":

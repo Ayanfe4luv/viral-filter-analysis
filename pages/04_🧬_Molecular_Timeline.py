@@ -855,20 +855,91 @@ with st.expander(f"📅 {T('timeline_matrix_header')}", expanded=True):
             st.session_state["_tl_matrix_df"]     = _matrix_df
             st.session_state["_tl_month_cols"]    = _month_cols
 
-            # Download the matrix as CSV
-            _pfx_mat = st.session_state.get("export_prefix", "virsift") or "virsift"
+            # ── Matrix download — per-file split + ZIP ───────────────────────
+            import pathlib as _pl_mat, os as _os_mat, io as _io_mat, zipfile as _zf_mod
+
+            _pfx_mat   = st.session_state.get("export_prefix", "virsift") or "virsift"
+            _mat_to_dl = st.session_state.get("_tl_edited_matrix", edited)
+
+            # Build clone → source file mapping (only available if multi-file scope)
+            _has_src = "_source_file" in _display_df.columns
+            _src_files_mat: list = []
+            _clone_to_file_mat: dict = {}
+            if _has_src:
+                _src_files_mat = sorted(_display_df["_source_file"].dropna().unique().tolist())
+                # hash → dominant source file
+                _h2file = (
+                    _display_df.groupby("sequence_hash")["_source_file"]
+                    .agg(lambda x: x.mode().iloc[0])
+                    .to_dict()
+                )
+                # clone → hash (from _matrix_df in scope)
+                _c2hash = _matrix_df.set_index("sequence_clone")["sequence_hash"].to_dict()
+                _clone_to_file_mat = {
+                    c: _h2file.get(h, "unknown")
+                    for c, h in _c2hash.items()
+                }
+
+            # ── Single merged CSV (always shown) ─────────────────────────────
             _dl1, _dl2 = st.columns(2)
             with _dl1:
-                _mat_to_dl = st.session_state.get("_tl_edited_matrix", edited)
+                _dl_label = (
+                    T("timeline_download_matrix_merged")
+                    if len(_src_files_mat) > 1
+                    else T("timeline_download_matrix_csv")
+                )
                 st.download_button(
-                    label=T("timeline_download_matrix_csv"),
+                    label=_dl_label,
                     data=_mat_to_dl.to_csv(index=False).encode("utf-8-sig"),
-                    file_name=f"{_pfx_mat}_timeline_matrix.csv",
+                    file_name=f"{_pfx_mat}_timeline_matrix_all.csv",
                     mime="text/csv",
                     use_container_width=True,
-                    help=f"📄 {_pfx_mat}_timeline_matrix.csv · rename prefix in sidebar",
+                    help=f"📄 {_pfx_mat}_timeline_matrix_all.csv",
                     key="tl_dl_matrix_csv",
                 )
+
+            # ── Per-file ZIP (only when multi-file scope active) ──────────────
+            if len(_src_files_mat) > 1 and _clone_to_file_mat:
+                with _dl2:
+                    # Derive a smart ZIP stem from common filename prefix
+                    _f_stems = [_pl_mat.Path(f).stem for f in _src_files_mat]
+                    _common  = _os_mat.path.commonprefix(_f_stems).rstrip("_").rstrip("-")
+                    _zip_stem = _common if _common else _pfx_mat
+
+                    _zip_mat_buf = _io_mat.BytesIO()
+                    with _zf_mod.ZipFile(_zip_mat_buf, "w", _zf_mod.ZIP_DEFLATED) as _zf_m:
+                        # Include the full merged matrix
+                        _zf_m.writestr(
+                            f"{_zip_stem}_matrix_all.csv",
+                            _mat_to_dl.to_csv(index=False),
+                        )
+                        # One CSV per source file (rows where dominant source = that file)
+                        for _sf in _src_files_mat:
+                            _sf_stem = _pl_mat.Path(_sf).stem
+                            _sf_clones = [c for c, f in _clone_to_file_mat.items() if f == _sf]
+                            if "sequence_clone" in _mat_to_dl.columns and _sf_clones:
+                                _sf_mat = _mat_to_dl[
+                                    _mat_to_dl["sequence_clone"].isin(_sf_clones)
+                                ]
+                            else:
+                                _sf_mat = _mat_to_dl.iloc[0:0]  # empty frame
+                            _zf_m.writestr(
+                                f"{_sf_stem}_matrix.csv",
+                                _sf_mat.to_csv(index=False),
+                            )
+                    _zip_mat_buf.seek(0)
+                    st.download_button(
+                        label=T("timeline_download_matrix_zip"),
+                        data=_zip_mat_buf.getvalue(),
+                        file_name=f"{_zip_stem}_timeline_matrices.zip",
+                        mime="application/zip",
+                        use_container_width=True,
+                        help=(
+                            f"📦 {_zip_stem}_timeline_matrices.zip — "
+                            f"{len(_src_files_mat)} per-file CSVs + merged"
+                        ),
+                        key="tl_dl_matrix_zip",
+                    )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PHASE 4 — Impact Preview & Export
