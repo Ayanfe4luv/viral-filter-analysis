@@ -680,5 +680,29 @@
   "timeline_per_file_caption": "Download curated sequences split by source file. Check the files you want, then download a single ZIP containing FASTA + metadata CSV for each.",
   "timeline_per_file_download_label": "Download selected files",
 
-  "analytics_chart_title_edit": "Chart title"
+  "analytics_chart_title_edit": "Chart title",
+
+  "analytics_scope_all_placeholder": "All files (no filter)",
+  "analytics_scope_files_selected": "{n} file(s) selected",
+
+  "analytics_guide_dist":     "Distribution: shows top categories by sequence count. Bar for ranked comparison, Pie for proportional composition. Use to check dataset composition at a glance.",
+  "analytics_guide_temporal": "Temporal Trend: sequence counts per month/quarter/year. Best for detecting seasonality, epidemic wave timing, or surveillance gaps over time.",
+  "analytics_guide_stacked":  "Cross-Tab: two-variable stacked bar. Reveals co-distribution of any two fields (e.g. Host × Subtype, Segment × Clade). Select different X and Y categories to explore.",
+  "analytics_guide_epi":      "Epidemic Curve: case counts per time period with detected wave peaks and troughs annotated. Adjust the Sensitivity slider — lower values detect minor peaks; higher values show only dominant surges.",
+  "analytics_guide_heatmap":  "Heatmap: colour-coded count matrix (time × category). Best for spotting geographic or subtype spread across months at a glance. Darker = more sequences.",
+  "analytics_guide_sunburst": "Sunburst Hierarchy: nested ring chart — Host → Subtype → Clade. Shows dataset composition at three biological levels. Hover a wedge to see its share of the parent.",
+  "analytics_guide_treemap":  "Treemap: area-proportional rectangles with the same Host → Subtype → Clade hierarchy. Better than sunburst when many equal-size categories exist; easier to compare areas.",
+  "analytics_guide_violin":   "Violin / Box: sequence length distribution grouped by a chosen field. Best for detecting contamination, truncated reads, or gene-segment size differences across subtypes.",
+  "analytics_guide_bubble":   "Bubble Timeline: sequences as sized bubbles across time (X) and a chosen category (Y). Bubble size = sequence count. Best for tracking geographic or host spread over time.",
+  "analytics_guide_parallel": "Parallel Categories: multi-axis flow connecting up to 6 fields. Thicker flows = more common combinations. Best for tracing how host, subtype, segment, and clade co-occur in your dataset.",
+  "analytics_guide_gantt":    "Gantt Range: horizontal bars showing temporal span (first → last detection) per group. Best for comparing how long different subtypes, clades, or hosts circulated in your dataset.",
+
+  "timeline_cluster_perfile_header":  "Per-File Cluster Summaries",
+  "timeline_cluster_perfile_zip_btn": "⬇ Download per-file cluster CSVs (ZIP)",
+  "timeline_cluster_perfile_zip_help": "One cluster_summary CSV per source file, bundled into a single ZIP archive.",
+
+  "export_timeline_header":   "Timeline & Curation Downloads",
+  "export_timeline_caption":  "Curated sequences and matrix from the last Molecular Timeline run ({n} sequences).",
+  "export_timeline_fasta_btn": "⬇ Curated FASTA ({n} seqs)",
+  "export_timeline_csv_btn":  "⬇ Curated Metadata CSV ({n} rows)"
 }
