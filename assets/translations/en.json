@@ -704,5 +704,37 @@
   "export_timeline_header":   "Timeline & Curation Downloads",
   "export_timeline_caption":  "Curated sequences and matrix from the last Molecular Timeline run ({n} sequences).",
   "export_timeline_fasta_btn": "⬇ Curated FASTA ({n} seqs)",
-  "export_timeline_csv_btn":  "⬇ Curated Metadata CSV ({n} rows)"
+  "export_timeline_csv_btn":  "⬇ Curated Metadata CSV ({n} rows)",
+
+  "welcome_aln_format_label":       "Alignment (.aln-fasta)",
+  "welcome_segments_note_title":    "All influenza gene segments supported",
+  "welcome_segments_note_suffix":   "segments handled automatically from FASTA header",
+
+  "sidebar_obs_new_charts":         "Show advanced visualizations",
+  "obs_new_charts_header":          "Advanced Visualizations",
+  "obs_new_charts_caption":         "Toggle advanced visualizations from the sidebar checkbox.",
+  "obs_chart_segment_note":         "All 10 influenza segments (HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3) handled automatically.",
+
+  "obs_sankey_header":              "Host \u2192 Subtype \u2192 Clade Flow (Sankey)",
+  "obs_sankey_no_data":             "Not enough data for Sankey diagram. Need host, subtype and clade columns.",
+
+  "obs_icicle_header":              "Segment \u2192 Subtype \u2192 Clade Hierarchy (Icicle)",
+  "obs_icicle_no_data":             "Not enough data for Icicle chart. Need segment, subtype and clade columns.",
+
+  "obs_3d_header":                  "3D Scatter: Year \u00d7 Length \u00d7 Segment",
+  "obs_3d_x":                       "Collection Year",
+  "obs_3d_y":                       "Sequence Length (bp)",
+  "obs_3d_z":                       "Segment",
+  "obs_3d_no_data":                 "Not enough data for 3D plot. Ensure date and length columns are present.",
+
+  "export_seg_folder_header":       "Segment Folder Structure",
+  "export_seg_folder_caption":      "Generate a ZIP archive with empty segment folders (or populate with data). Useful for organising multi-segment GISAID projects.",
+  "export_seg_folder_zip_name":     "ZIP archive name",
+  "export_seg_folder_select_segments": "Select segments to include:",
+  "export_seg_folder_split_data":   "Also split dataset into segment folders",
+  "export_seg_folder_split_help":   "If checked, each selected segment folder will contain a FASTA and CSV of sequences belonging to that segment.",
+  "export_seg_folder_split_info":   "Dataset will be split into segment-specific FASTA and CSV files inside each folder.",
+  "export_seg_folder_generate":     "Generate Segment ZIP",
+  "export_seg_folder_download":     "Download Segment Folder ZIP ({n} segments)",
+  "export_seg_folder_none_selected": "No segments selected. Please select at least one segment."
 }
