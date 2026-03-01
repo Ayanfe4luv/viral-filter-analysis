@@ -69,21 +69,29 @@ _an_act_names: list = (
 _an_contrib = [rf for rf in _an_raw_files if rf["name"] in _an_act_names]
 
 if len(_an_contrib) > 1:
-    _an_scope_opts = [T("timeline_scope_all")] + [rf["name"] for rf in _an_contrib]
-    _an_scope = st.radio(
+    _an_scope_files = st.multiselect(
         T("timeline_scope_label"),
-        options=_an_scope_opts,
-        index=st.session_state.get("an_scope_idx", 0),
-        horizontal=True,
-        key="an_file_scope",
+        options=[rf["name"] for rf in _an_contrib],
+        default=st.session_state.get("an_scope_files", []),
+        key="an_scope_files",
         help=T("timeline_scope_help"),
+        placeholder=T("analytics_scope_all_placeholder"),
     )
-    st.session_state["an_scope_idx"] = _an_scope_opts.index(_an_scope)
-    if _an_scope != T("timeline_scope_all"):
-        _an_rf = next(rf for rf in _an_contrib if rf["name"] == _an_scope)
-        _df = pd.DataFrame(_an_rf["parsed"])
-        _src = f"📁 {_an_scope[:30]}"
-        st.success(T("timeline_scope_file_badge", file=_an_scope, n=len(_df)))
+    if _an_scope_files:
+        _scope_dfs = []
+        for _sf_name in _an_scope_files:
+            _sf_rf = next((rf for rf in _an_contrib if rf["name"] == _sf_name), None)
+            if _sf_rf:
+                _sf_df = pd.DataFrame(_sf_rf["parsed"])
+                _sf_df["_source_file"] = _sf_name
+                _scope_dfs.append(_sf_df)
+        if _scope_dfs:
+            _df = pd.concat(_scope_dfs, ignore_index=True)
+            _src = f"📁 {T('analytics_scope_files_selected', n=len(_an_scope_files))}"
+            st.caption(
+                f"📁 {T('timeline_scope_active')}: "
+                f"**{', '.join(_an_scope_files)[:80]}**"
+            )
     else:
         st.caption(T("timeline_scope_all_caption", n=len(_an_contrib)))
     st.divider()
@@ -277,6 +285,22 @@ def _enrich(df_hash: str, df: pd.DataFrame) -> pd.DataFrame:  # noqa: ARG001
 
 
 _df_enriched = _enrich(str(len(_df)) + str(_df.columns.tolist()), _df)
+
+# ── sequence_clone enrichment from Timeline matrix (post-curation clone names) ──
+# If the user has run Molecular Timeline, the matrix stores human-readable
+# clone names keyed by sequence_hash.  We join them here so "Sequence Clone"
+# appears in _FIELD_MAP for all chart types without re-running Timeline.
+if "sequence_clone" not in _df_enriched.columns:
+    _tl_mdf = st.session_state.get("_tl_matrix_df")
+    if (
+        _tl_mdf is not None
+        and "sequence_hash" in _df_enriched.columns
+        and "sequence_clone" in _tl_mdf.columns
+    ):
+        _h2c = _tl_mdf.set_index("sequence_hash")["sequence_clone"].to_dict()
+        _df_enriched = _df_enriched.assign(
+            sequence_clone=_df_enriched["sequence_hash"].map(_h2c)
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -792,6 +816,23 @@ with ctrl_col:
         label_visibility="collapsed",
     )
     chart_type = _CHART_TYPES[chart_type_label]
+
+    # ── Chart type guidance cue ────────────────────────────────────────────
+    _CHART_GUIDES = {
+        "dist":     T("analytics_guide_dist"),
+        "temporal": T("analytics_guide_temporal"),
+        "stacked":  T("analytics_guide_stacked"),
+        "epi":      T("analytics_guide_epi"),
+        "heatmap":  T("analytics_guide_heatmap"),
+        "sunburst": T("analytics_guide_sunburst"),
+        "treemap":  T("analytics_guide_treemap"),
+        "violin":   T("analytics_guide_violin"),
+        "bubble":   T("analytics_guide_bubble"),
+        "parallel": T("analytics_guide_parallel"),
+        "gantt":    T("analytics_guide_gantt"),
+    }
+    if chart_type in _CHART_GUIDES:
+        st.info(_CHART_GUIDES[chart_type], icon="💡")
 
     # ── Dist ──────────────────────────────────────────────────────────────
     if chart_type == "dist":

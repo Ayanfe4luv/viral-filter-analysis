@@ -528,6 +528,53 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
                 help=f"📄 {_pfx_p1}_cluster_distribution.csv — includes size bucket explanations · rename prefix in sidebar",
             )
 
+        # ── Per-file cluster CSVs (only when multi-file scope is active) ─────
+        if "_source_file" in _display_df.columns:
+            _src_files_p1 = sorted(_display_df["_source_file"].dropna().unique().tolist())
+            if len(_src_files_p1) > 1:
+                import io as _io_p1, zipfile as _zf_p1cls, pathlib as _pl_p1
+                with st.expander(T("timeline_cluster_perfile_header"), expanded=False):
+                    _zip_p1_buf   = _io_p1.BytesIO()
+                    _p1_preview   = []
+                    with _zf_p1cls.ZipFile(_zip_p1_buf, "w", _zf_p1cls.ZIP_DEFLATED) as _zf_p1f:
+                        for _sf_p1 in _src_files_p1:
+                            _sf_p1_mask = _display_df["_source_file"] == _sf_p1
+                            _sf_p1_df   = _display_df[_sf_p1_mask]
+                            _sf_p1_spec: dict = {
+                                "count":          ("sequence_hash", "size"),
+                                "representative": ("isolate", "first") if _has_isolate_d else ("sequence_hash", "first"),
+                            }
+                            if _has_dates_d:
+                                _sf_p1_spec["first_date"] = ("collection_date", "min")
+                                _sf_p1_spec["last_date"]  = ("collection_date", "max")
+                            _sf_p1_cs = (
+                                _sf_p1_df.groupby("sequence_hash")
+                                .agg(**_sf_p1_spec)
+                                .sort_values("count", ascending=False)
+                                .reset_index(drop=True)
+                            )
+                            _sf_p1_stem = _pl_p1.Path(_sf_p1).stem
+                            _zf_p1f.writestr(
+                                f"{_sf_p1_stem}_cluster_summary.csv",
+                                _sf_p1_cs.to_csv(index=False),
+                            )
+                            _p1_preview.append({
+                                "File":     _sf_p1,
+                                "Clusters": len(_sf_p1_cs),
+                                "Sequences": f"{_sf_p1_df['sequence_hash'].nunique():,}",
+                            })
+                    _zip_p1_buf.seek(0)
+                    st.dataframe(pd.DataFrame(_p1_preview), use_container_width=True, hide_index=True)
+                    st.download_button(
+                        label=T("timeline_cluster_perfile_zip_btn"),
+                        data=_zip_p1_buf.getvalue(),
+                        file_name=f"{_pfx_p1}_cluster_summaries.zip",
+                        mime="application/zip",
+                        use_container_width=True,
+                        help=T("timeline_cluster_perfile_zip_help"),
+                        key="tl_dl_perfile_zip_p1",
+                    )
+
         # ── Inline size bucket interpretation guide ───────────────────────────
         with st.expander(T("timeline_bucket_guide_header"), expanded=False):
             st.dataframe(_guide_df, use_container_width=True, hide_index=True)
@@ -1170,8 +1217,27 @@ with st.expander(f"🔬 {T('timeline_preview_header')}", expanded=True):
         _r  = st.session_state["_tl_result_df"]
         _rs = st.session_state["_tl_result_stats"]
 
-        # ── Visualization type selector ────────────────────────────────────────
+        # ── Editable chart title ───────────────────────────────────────────────
         st.divider()
+        _tl_title_col, _ = st.columns([2, 3])
+        with _tl_title_col:
+            _tl_cur_title = st.session_state.get(
+                "_tl_chart_title", T("timeline_impact_chart_title")
+            )
+            _tl_edited_title = st.text_input(
+                T("analytics_chart_title_edit"),
+                value=_tl_cur_title,
+                max_chars=120,
+                key="tl_chart_title_input",
+            )
+            if _tl_edited_title and _tl_edited_title != _tl_cur_title:
+                st.session_state["_tl_chart_title"] = _tl_edited_title
+                if "_tl_result_fig" in st.session_state:
+                    st.session_state["_tl_result_fig"].update_layout(
+                        title=dict(text=_tl_edited_title, font=dict(size=13), x=0)
+                    )
+
+        # ── Visualization type selector ────────────────────────────────────────
         _viz_choice = st.radio(
             T("timeline_viz_type_label"),
             options=[

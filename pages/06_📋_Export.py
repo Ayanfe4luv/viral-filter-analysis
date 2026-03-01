@@ -11,6 +11,7 @@ Features (adapted from fasta_analysis_app_final.py Export tab):
 
 import io
 import json
+import re
 import zipfile
 
 import pandas as pd
@@ -38,12 +39,21 @@ st.caption(
 )
 st.divider()
 
-# ── Filename prefix (mirrors sidebar control) ─────────────────────────────────
-_pfx = st.session_state.get("export_prefix", "virsift") or "virsift"
-st.caption(
-    f"📁 **{T('sidebar_export_prefix_label')}:** `{_pfx}` "
-    f"— {T('sidebar_export_prefix_help')}"
-)
+# ── Filename prefix — editable on this page (mirrors sidebar control) ────────
+_pfx_default = st.session_state.get("export_prefix", "virsift") or "virsift"
+_pfx_col, _ = st.columns([2, 3])
+with _pfx_col:
+    _pfx_input = st.text_input(
+        T("sidebar_export_prefix_label"),
+        value=_pfx_default,
+        max_chars=40,
+        key="export_pg_prefix",
+        help=T("sidebar_export_prefix_help"),
+        placeholder="virsift",
+    )
+_pfx = re.sub(r"[^\w\-]", "_", (_pfx_input or "virsift").strip())[:40] or "virsift"
+if _pfx != _pfx_default:
+    st.session_state["export_prefix"] = _pfx
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SECTION 1 — Quick Downloads
@@ -229,6 +239,62 @@ if len(_contrib_ex) > 1:
                     use_container_width=True,
                     key="dl_pf_zip_dl",
                 )
+
+    st.divider()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 1c — Timeline & Curation Downloads (visible after Molecular Timeline run)
+# ─────────────────────────────────────────────────────────────────────────────
+_tl_result_df = st.session_state.get("_tl_result_df")
+_tl_matrix    = st.session_state.get("_tl_edited_matrix")
+
+if _tl_result_df is not None and not _tl_result_df.empty:
+    st.subheader(f"📅 {T('export_timeline_header')}")
+    st.caption(T("export_timeline_caption", n=f"{len(_tl_result_df):,}"))
+
+    _tl_q1, _tl_q2, _tl_q3 = st.columns(3)
+
+    with _tl_q1:
+        _tl_fasta_str = convert_df_to_fasta(_tl_result_df)
+        st.download_button(
+            label=T("export_timeline_fasta_btn", n=f"{len(_tl_result_df):,}"),
+            data=_tl_fasta_str.encode("utf-8"),
+            file_name=f"{_pfx}_curated_timeline.fasta",
+            mime="text/plain",
+            type="primary",
+            use_container_width=True,
+            help=f"📄 {_pfx}_curated_timeline.fasta",
+            key="ex_tl_fasta",
+        )
+
+    with _tl_q2:
+        _tl_csv_bytes = (
+            _tl_result_df.drop(columns=["sequence"], errors="ignore")
+            .to_csv(index=False)
+            .encode("utf-8")
+        )
+        st.download_button(
+            label=T("export_timeline_csv_btn", n=f"{len(_tl_result_df):,}"),
+            data=_tl_csv_bytes,
+            file_name=f"{_pfx}_curated_timeline_metadata.csv",
+            mime="text/csv",
+            use_container_width=True,
+            help=f"📄 {_pfx}_curated_timeline_metadata.csv",
+            key="ex_tl_csv",
+        )
+
+    with _tl_q3:
+        if _tl_matrix is not None:
+            st.download_button(
+                label=T("timeline_download_matrix_csv"),
+                data=_tl_matrix.to_csv(index=False).encode("utf-8-sig"),
+                file_name=f"{_pfx}_timeline_matrix.csv",
+                mime="text/csv",
+                use_container_width=True,
+                help=f"📄 {_pfx}_timeline_matrix.csv",
+                key="ex_tl_matrix",
+            )
 
     st.divider()
 
