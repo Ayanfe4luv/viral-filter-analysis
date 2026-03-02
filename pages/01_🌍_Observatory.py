@@ -394,7 +394,7 @@ with st.sidebar:
     _show_locs       = st.checkbox(T("sidebar_obs_locs"),        value=True,  key="obs_show_locs")
     _show_clades     = st.checkbox(T("sidebar_obs_clades"),      value=True,  key="obs_show_clades")
     _show_batch      = st.checkbox(T("sidebar_obs_batch"),       value=True,  key="obs_show_batch")
-    _show_new_charts = st.checkbox(T("sidebar_obs_new_charts"),  value=False, key="obs_show_new_charts")
+    _show_new_charts = st.checkbox(T("sidebar_obs_new_charts"),  value=True,  key="obs_show_new_charts")
 
 # ── Row 1: Core KPIs ─────────────────────────────────────────────────────────
 if _show_kpis:
@@ -563,24 +563,44 @@ with col_seg:
                             T("obs_col_count"):    _vc.values.tolist()})
         st.dataframe(top, use_container_width=True, hide_index=True)
 
-# ── Row 4: Top locations ──────────────────────────────────────────────────────
+# ── Row 4: Top [any field] bar chart (user-selectable) ───────────────────────
 if _show_locs:
     st.divider()
-    st.subheader(T("obs_top_locations"))
-    if "location" in _display_df.columns:
-        _vc_loc = _display_df["location"].value_counts().head(15)
-        top_loc = pd.DataFrame({T("obs_col_location"): _vc_loc.index.tolist(),
-                                T("obs_col_count"):    _vc_loc.values.tolist()})
+    # Build map of available categorical columns in priority order
+    _loc_field_map = {k: v for k, v in [
+        (T("obs_col_location"), "location"),
+        (T("obs_col_host"),     "host"),
+        (T("obs_col_subtype"),  "subtype_clean"),
+        (T("obs_col_segment"),  "segment"),
+        ("Clade L1",            "clade_l1"),
+        (T("obs_col_clade"),    "clade"),
+    ] if v in _display_df.columns and _display_df[v].notna().any()}
+
+    _lf_hdr_col, _lf_ctrl_col = st.columns([3, 1])
+    with _lf_ctrl_col:
+        _lf_lbl = st.selectbox(
+            T("obs_top_field_selector"),
+            list(_loc_field_map.keys()),
+            index=0, key="obs_loc_field",
+        )
+    _lf_col = _loc_field_map.get(_lf_lbl, "location")
+    with _lf_hdr_col:
+        st.subheader(f"Top {_lf_lbl}")
+
+    if _lf_col in _display_df.columns:
+        _vc_loc = _display_df[_lf_col].dropna().value_counts().head(15)
+        top_loc = pd.DataFrame({_lf_lbl: _vc_loc.index.tolist(),
+                                T("obs_col_count"): _vc_loc.values.tolist()})
         try:
             import plotly.express as px
             fig = px.bar(
-                top_loc, x=T("obs_col_count"), y=T("obs_col_location"),
-                orientation="h", height=400,
+                top_loc, x=T("obs_col_count"), y=_lf_lbl,
+                orientation="h", height=max(320, min(len(_vc_loc) * 28, 520)),
                 color=T("obs_col_count"), color_continuous_scale="Blues",
             )
             fig.update_layout(
                 yaxis={"categoryorder": "total ascending"},
-                margin=dict(t=10, b=40, l=120, r=10),
+                margin=dict(t=10, b=40, l=140, r=10),
                 coloraxis_showscale=False,
                 paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
             )
@@ -588,186 +608,311 @@ if _show_locs:
         except ImportError:
             st.dataframe(top_loc, use_container_width=True, hide_index=True)
 
-# ── Row 5: Clade donut ────────────────────────────────────────────────────────
-_clade_col = "clade" if "clade" in _display_df.columns else "clade_l1"
-if _show_clades and _clade_col in _display_df.columns:
+# ── Row 5: Donut chart — user-selectable field ───────────────────────────────
+_donut_field_map = {k: v for k, v in [
+    (T("obs_col_clade"),   "clade"),
+    ("Clade L1",           "clade_l1"),
+    (T("obs_col_subtype"), "subtype_clean"),
+    (T("obs_col_host"),    "host"),
+    (T("obs_col_segment"), "segment"),
+    (T("obs_col_location"),"location"),
+] if v in _display_df.columns and _display_df[v].notna().any()}
+
+if _show_clades and _donut_field_map:
     st.divider()
-    st.subheader(T("obs_clade_dist"))
-    _vc_clade = _display_df[_clade_col].dropna().value_counts().head(10)
-    top_clade = pd.DataFrame({T("obs_col_clade"): _vc_clade.index.tolist(),
-                              T("obs_col_count"): _vc_clade.values.tolist()})
+    _dnt_hdr_col, _dnt_ctrl_col = st.columns([3, 1])
+    with _dnt_ctrl_col:
+        _dnt_lbl = st.selectbox(
+            T("obs_donut_field_selector"),
+            list(_donut_field_map.keys()),
+            index=0, key="obs_donut_field",
+        )
+    _dnt_col = _donut_field_map.get(_dnt_lbl, "clade")
+    with _dnt_hdr_col:
+        st.subheader(f"Top {_dnt_lbl} Distribution")
+
+    _vc_donut = _display_df[_dnt_col].dropna().value_counts().head(12)
+    top_donut = pd.DataFrame({_dnt_lbl: _vc_donut.index.tolist(),
+                              T("obs_col_count"): _vc_donut.values.tolist()})
     try:
         import plotly.express as px
         fig = px.pie(
-            top_clade, names=T("obs_col_clade"), values=T("obs_col_count"),
-            hole=0.42, height=320,
+            top_donut, names=_dnt_lbl, values=T("obs_col_count"),
+            hole=0.42, height=340,
             color_discrete_sequence=px.colors.qualitative.Set2,
         )
-        fig.update_layout(margin=dict(t=20, b=20),
-                          paper_bgcolor="rgba(0,0,0,0)")
+        fig.update_layout(
+            margin=dict(t=20, b=20),
+            paper_bgcolor="rgba(0,0,0,0)",
+            legend=dict(orientation="v", x=1.02, y=0.5),
+        )
         st.plotly_chart(fig, use_container_width=True)
     except ImportError:
-        st.dataframe(top_clade, use_container_width=True, hide_index=True)
+        st.dataframe(top_donut, use_container_width=True, hide_index=True)
 
-# ── Extended Epidemiological Charts ──────────────────────────────────────────
+# ── Extended Epidemiological Charts (Advanced) ────────────────────────────────
 if _show_new_charts and _PLOTLY:
     import plotly.express as _px_ext
     import plotly.graph_objects as _go_ext
 
     st.divider()
     st.subheader(f"🔬 {T('obs_new_charts_header')}")
+
+    # ── Auto-detect available categorical and numeric fields ──────────────────
+    _ADV_CAT = {k: v for k, v in [
+        (T("obs_col_host"),    "host"),
+        (T("obs_col_subtype"), "subtype_clean"),
+        (T("obs_col_segment"), "segment"),
+        (T("obs_col_clade"),   "clade"),
+        ("Clade L1",           "clade_l1"),
+        (T("obs_col_location"),"location"),
+    ] if v in _display_df.columns and _display_df[v].notna().any()}
+    _ADV_CAT_LBLS = list(_ADV_CAT.keys())
+
+    # Numeric fields (always includes sequence_length if present; year computed later)
+    _ADV_NUM = {}
+    if "sequence_length" in _display_df.columns:
+        _ADV_NUM[T("obs_3d_y")] = "sequence_length"
+    if "collection_date" in _display_df.columns:
+        _ADV_NUM[T("obs_3d_x")] = "_year_f"   # computed below
+    _ADV_NUM_LBLS = list(_ADV_NUM.keys())
+
     _nc_tab1, _nc_tab2, _nc_tab3 = st.tabs([
         T("obs_sankey_header"),
         T("obs_icicle_header"),
         T("obs_3d_header"),
     ])
 
-    # ── Tab 1: Sankey — Host → Subtype → Clade flow ─────────────────────
+    # ── Tab 1: Sankey — configurable 3-level flow ─────────────────────────────
     with _nc_tab1:
-        st.caption(T("obs_sankey_header"))
-        if "host" in _display_df.columns and "subtype_clean" in _display_df.columns:
-            try:
-                _san_df = _display_df[["host", "subtype_clean"]].dropna().head(8000)
-                _host_v = _san_df["host"].value_counts().head(6).index.tolist()
-                _sub_v  = _san_df["subtype_clean"].value_counts().head(8).index.tolist()
+        # Field controls
+        _s_c1, _s_c2, _s_c3, _s_c4 = st.columns([1, 1, 1, 2])
+        _s_def1 = _ADV_CAT_LBLS.index(T("obs_col_host")) if T("obs_col_host") in _ADV_CAT_LBLS else 0
+        _s_def2 = (_ADV_CAT_LBLS.index(T("obs_col_subtype"))
+                   if T("obs_col_subtype") in _ADV_CAT_LBLS else min(1, len(_ADV_CAT_LBLS)-1))
+        _s_l3_opts = [T("obs_none_option")] + _ADV_CAT_LBLS
+        # Default level 3: prefer Clade, then Clade L1, else none
+        _s_def3 = next(
+            (i for i, v in enumerate(_s_l3_opts)
+             if v in (T("obs_col_clade"), "Clade L1")),
+            0,
+        )
+        with _s_c1:
+            _san_l1 = st.selectbox(T("obs_sankey_level1"), _ADV_CAT_LBLS,
+                                   index=_s_def1, key="adv_san_f1")
+        with _s_c2:
+            _san_l2 = st.selectbox(T("obs_sankey_level2"), _ADV_CAT_LBLS,
+                                   index=_s_def2, key="adv_san_f2")
+        with _s_c3:
+            _san_l3 = st.selectbox(T("obs_sankey_level3"), _s_l3_opts,
+                                   index=_s_def3, key="adv_san_f3")
+        with _s_c4:
+            _san_title = st.text_input(T("obs_adv_chart_title"),
+                                       value=T("obs_sankey_header"),
+                                       key="adv_san_title", max_chars=80)
 
-                _clade_v = []
-                _san_df2 = pd.DataFrame()
-                if "clade_l1" in _display_df.columns:
-                    _san_df2 = _display_df[["subtype_clean", "clade_l1"]].dropna().head(8000)
-                    _clade_v = _san_df2["clade_l1"].value_counts().head(6).index.tolist()
+        _sf1 = _ADV_CAT.get(_san_l1, "host")
+        _sf2 = _ADV_CAT.get(_san_l2, "subtype_clean")
+        _sf3 = _ADV_CAT.get(_san_l3) if _san_l3 != T("obs_none_option") else None
 
-                _san_nodes  = _host_v + _sub_v + _clade_v
-                _san_ni     = {n: i for i, n in enumerate(_san_nodes)}
-                _san_colors = (
-                    ["#0891b2"] * len(_host_v)
-                    + ["#10b981"] * len(_sub_v)
-                    + ["#8b5cf6"] * len(_clade_v)
+        try:
+            _san_cols  = [c for c in [_sf1, _sf2] if c and c in _display_df.columns]
+            if _sf3 and _sf3 in _display_df.columns:
+                _san_cols.append(_sf3)
+            _san_raw   = _display_df[_san_cols].dropna(how="any").head(8000)
+
+            _v1 = _san_raw[_sf1].value_counts().head(8).index.tolist()
+            _v2 = _san_raw[_sf2].value_counts().head(10).index.tolist()
+            _v3 = (_san_raw[_sf3].value_counts().head(8).index.tolist()
+                   if _sf3 and _sf3 in _san_raw.columns else [])
+
+            _san_nodes  = _v1 + _v2 + _v3
+            _san_ni     = {n: idx for idx, n in enumerate(_san_nodes)}
+            _san_colors = (["#0891b2"] * len(_v1)
+                           + ["#10b981"] * len(_v2)
+                           + ["#8b5cf6"] * len(_v3))
+            _san_links  = []
+
+            _m12 = _san_raw[_san_raw[_sf1].isin(_v1) & _san_raw[_sf2].isin(_v2)]
+            for (a, b), cnt in _m12.groupby([_sf1, _sf2]).size().items():
+                if a in _san_ni and b in _san_ni:
+                    _san_links.append({"s": _san_ni[a], "t": _san_ni[b], "v": int(cnt)})
+
+            if _sf3 and _v3:
+                _m23 = _san_raw[_san_raw[_sf2].isin(_v2) & _san_raw[_sf3].isin(_v3)]
+                for (b, c), cnt in _m23.groupby([_sf2, _sf3]).size().items():
+                    if b in _san_ni and c in _san_ni:
+                        _san_links.append({"s": _san_ni[b], "t": _san_ni[c], "v": int(cnt)})
+
+            if _san_links:
+                _san_fig = _go_ext.Figure(_go_ext.Sankey(
+                    node=dict(
+                        label=_san_nodes, color=_san_colors,
+                        pad=15, thickness=20,
+                        hovertemplate="%{label}<br>%{value} sequences<extra></extra>",
+                    ),
+                    link=dict(
+                        source=[l["s"] for l in _san_links],
+                        target=[l["t"] for l in _san_links],
+                        value =[l["v"] for l in _san_links],
+                    ),
+                ))
+                _san_fig.update_layout(
+                    title=dict(text=_san_title, font=dict(size=13), x=0),
+                    height=430, paper_bgcolor="rgba(0,0,0,0)",
+                    margin=dict(t=40, b=10, l=10, r=10),
+                    font=dict(size=11),
                 )
-                _san_links = []
+                st.plotly_chart(_san_fig, use_container_width=True)
+            else:
+                st.info(T("obs_sankey_no_data"))
+        except Exception as _san_err:
+            st.warning(f"Sankey error: {_san_err}")
 
-                _h2s = _san_df[_san_df["host"].isin(_host_v) & _san_df["subtype_clean"].isin(_sub_v)]
-                for (h, s), cnt in _h2s.groupby(["host", "subtype_clean"]).size().items():
-                    _san_links.append({"s": _san_ni[h], "t": _san_ni[s], "v": int(cnt)})
-
-                if _clade_v and not _san_df2.empty:
-                    _s2c = _san_df2[_san_df2["subtype_clean"].isin(_sub_v) & _san_df2["clade_l1"].isin(_clade_v)]
-                    for (s, c), cnt in _s2c.groupby(["subtype_clean", "clade_l1"]).size().items():
-                        _san_links.append({"s": _san_ni[s], "t": _san_ni[c], "v": int(cnt)})
-
-                if _san_links:
-                    _san_fig = _go_ext.Figure(_go_ext.Sankey(
-                        node=dict(
-                            label=_san_nodes, color=_san_colors,
-                            pad=15, thickness=20,
-                            hovertemplate="%{label}<br>%{value} sequences<extra></extra>",
-                        ),
-                        link=dict(
-                            source=[l["s"] for l in _san_links],
-                            target=[l["t"] for l in _san_links],
-                            value=[l["v"] for l in _san_links],
-                        ),
-                    ))
-                    _san_fig.update_layout(
-                        height=430, paper_bgcolor="rgba(0,0,0,0)",
-                        margin=dict(t=10, b=10, l=10, r=10),
-                        font=dict(size=11),
-                    )
-                    st.plotly_chart(_san_fig, use_container_width=True)
-                else:
-                    st.info(T("obs_sankey_no_data"))
-            except Exception as _san_err:
-                st.warning(f"Sankey error: {_san_err}")
-        else:
-            st.info(T("obs_sankey_no_data"))
-
-    # ── Tab 2: Icicle — Segment → Subtype → Clade ───────────────────────
+    # ── Tab 2: Icicle — configurable path ────────────────────────────────────
     with _nc_tab2:
-        st.caption(T("obs_icicle_header"))
-        _ic_avail = [c for c in ["segment", "subtype_clean", "clade_l1"] if c in _display_df.columns]
-        if _ic_avail:
+        _ic_c1, _ic_c2 = st.columns([3, 2])
+        _ic_defaults = [l for l in [
+            T("obs_col_segment"), T("obs_col_subtype"),
+            T("obs_col_clade"), "Clade L1",
+        ] if l in _ADV_CAT_LBLS][:3]
+        with _ic_c1:
+            _ic_path_lbls = st.multiselect(
+                T("obs_icicle_path_fields"), _ADV_CAT_LBLS,
+                default=_ic_defaults, key="adv_ic_path",
+                max_selections=4,
+            )
+        with _ic_c2:
+            _ic_title = st.text_input(T("obs_adv_chart_title"),
+                                      value=T("obs_icicle_header"),
+                                      key="adv_ic_title", max_chars=80)
+
+        _ic_path = [_ADV_CAT[l] for l in _ic_path_lbls if l in _ADV_CAT]
+        if _ic_path:
             try:
-                _ic_df = _display_df[_ic_avail].dropna(how="all").head(5000).fillna("Unknown")
-                _ic_path = [c for c in ["segment", "subtype_clean", "clade_l1"] if c in _ic_avail]
-                if _ic_path:
-                    _ic_agg = _ic_df.groupby(_ic_path).size().reset_index(name="count")
-                    _ic_fig = _px_ext.icicle(
-                        _ic_agg, path=_ic_path, values="count",
-                        color="count", color_continuous_scale="Viridis",
-                    )
-                    _ic_fig.update_traces(
-                        textinfo="label+value+percent parent",
-                        root_color="rgba(0,0,0,0)",
-                    )
-                    _ic_fig.update_layout(
-                        height=440, paper_bgcolor="rgba(0,0,0,0)",
-                        margin=dict(t=10, b=10, l=10, r=10),
-                        coloraxis_showscale=False,
-                    )
-                    st.plotly_chart(_ic_fig, use_container_width=True)
+                _ic_df  = _display_df[_ic_path].dropna(how="all").head(5000).fillna("Unknown")
+                _ic_agg = _ic_df.groupby(_ic_path).size().reset_index(name="count")
+                _ic_fig = _px_ext.icicle(
+                    _ic_agg, path=_ic_path, values="count",
+                    color="count", color_continuous_scale="Viridis",
+                )
+                _ic_fig.update_traces(
+                    textinfo="label+value+percent parent",
+                    root_color="rgba(0,0,0,0)",
+                )
+                _ic_fig.update_layout(
+                    title=dict(text=_ic_title, font=dict(size=13), x=0),
+                    height=440, paper_bgcolor="rgba(0,0,0,0)",
+                    margin=dict(t=40, b=10, l=10, r=10),
+                    coloraxis_showscale=False,
+                )
+                st.plotly_chart(_ic_fig, use_container_width=True)
             except Exception as _ic_err:
                 st.warning(f"Icicle error: {_ic_err}")
         else:
             st.info(T("obs_icicle_no_data"))
 
-    # ── Tab 3: 3D Scatter — Year × Sequence Length × Segment ────────────
+    # ── Tab 3: 3D Scatter — configurable axes ────────────────────────────────
     with _nc_tab3:
-        st.caption(T("obs_3d_header"))
-        if "collection_date" in _display_df.columns and "sequence_length" in _display_df.columns:
-            try:
-                _sc3d = _display_df.copy()
+        _d3_c1, _d3_c2, _d3_c3, _d3_c4 = st.columns(4)
+        _d3_title_col, _ = st.columns([3, 1])
+
+        _x_def = _ADV_NUM_LBLS.index(T("obs_3d_x")) if T("obs_3d_x") in _ADV_NUM_LBLS else 0
+        _y_def = _ADV_NUM_LBLS.index(T("obs_3d_y")) if T("obs_3d_y") in _ADV_NUM_LBLS else 0
+
+        _z_opts    = [T("obs_none_option")] + _ADV_CAT_LBLS
+        _z_def     = next((i for i, v in enumerate(_z_opts)
+                           if v == T("obs_col_segment")), 0)
+        _clr_opts  = [T("obs_none_option")] + _ADV_CAT_LBLS
+        _clr_def   = next((i for i, v in enumerate(_clr_opts)
+                           if v == T("obs_col_subtype")), 0)
+
+        with _d3_c1:
+            _d3_x_lbl = st.selectbox(T("obs_3d_x_axis"), _ADV_NUM_LBLS,
+                                     index=_x_def, key="adv_d3_x")
+        with _d3_c2:
+            _d3_y_lbl = st.selectbox(T("obs_3d_y_axis"), _ADV_NUM_LBLS,
+                                     index=min(_y_def, len(_ADV_NUM_LBLS)-1),
+                                     key="adv_d3_y")
+        with _d3_c3:
+            _d3_z_lbl = st.selectbox(T("obs_3d_z_axis"), _z_opts,
+                                     index=_z_def, key="adv_d3_z")
+        with _d3_c4:
+            _d3_clr_lbl = st.selectbox(T("obs_3d_color_field"), _clr_opts,
+                                       index=_clr_def, key="adv_d3_clr")
+        with _d3_title_col:
+            _d3_title = st.text_input(T("obs_adv_chart_title"),
+                                      value=T("obs_3d_header"),
+                                      key="adv_d3_title", max_chars=80)
+
+        try:
+            _sc3d = _display_df.copy()
+            if "collection_date" in _sc3d.columns:
                 _sc3d["_year_f"] = pd.to_datetime(
                     _sc3d["collection_date"], errors="coerce"
                 ).dt.year.astype("Int64")
-                _sc3d = _sc3d.dropna(subset=["_year_f", "sequence_length"])
 
-                # Encode segment as integer for Z axis
-                _SEG_ORDER = ["PB2", "PB1", "PA", "HA", "NP", "NA", "MP", "NS", "HE", "P3"]
-                if "segment" in _sc3d.columns:
+            _x_col = _ADV_NUM.get(_d3_x_lbl, "sequence_length")
+            _y_col = _ADV_NUM.get(_d3_y_lbl, "sequence_length")
+
+            # Z axis: encode categorical field as integer
+            _z_col = None; _z_lbl_f = None
+            _z_tick_text = None; _z_tick_vals = None
+            if _d3_z_lbl != T("obs_none_option") and _d3_z_lbl in _ADV_CAT:
+                _z_raw = _ADV_CAT[_d3_z_lbl]
+                if _z_raw == "segment":
+                    _SEG_ORDER = ["PB2", "PB1", "PA", "HA", "NP", "NA", "MP", "NS", "HE", "P3"]
                     _seg_enc = {s: i + 1 for i, s in enumerate(_SEG_ORDER)}
                     _sc3d["_seg_z"] = _sc3d["segment"].map(_seg_enc).fillna(0)
-                    _z_col, _z_lbl = "_seg_z", T("obs_3d_z")
-                    _z_tick_text   = _SEG_ORDER
-                    _z_tick_vals   = list(range(1, len(_SEG_ORDER) + 1))
+                    _z_col, _z_lbl_f  = "_seg_z", _d3_z_lbl
+                    _z_tick_text = _SEG_ORDER
+                    _z_tick_vals = list(range(1, len(_SEG_ORDER) + 1))
                 else:
-                    _z_col, _z_lbl = "sequence_length", T("obs_3d_y")
-                    _z_tick_text, _z_tick_vals = None, None
+                    _uniq = _sc3d[_z_raw].dropna().unique().tolist()[:20]
+                    _enc  = {v: i + 1 for i, v in enumerate(_uniq)}
+                    _sc3d["_cat_z"] = _sc3d[_z_raw].map(_enc).fillna(0)
+                    _z_col, _z_lbl_f  = "_cat_z", _d3_z_lbl
+                    _z_tick_text = [str(u) for u in _uniq]
+                    _z_tick_vals = list(range(1, len(_uniq) + 1))
 
-                _clr = "subtype_clean" if "subtype_clean" in _sc3d.columns else None
-                _hn  = "isolate" if "isolate" in _sc3d.columns else None
+            _clr_col = (_ADV_CAT.get(_d3_clr_lbl)
+                        if _d3_clr_lbl != T("obs_none_option") else None)
+            _hn_col  = "isolate" if "isolate" in _sc3d.columns else None
 
-                # Sample for render performance
-                _sc3d_s = _sc3d.sample(min(3000, len(_sc3d)), random_state=42)
+            _req = [c for c in [_x_col, _y_col] if c]
+            _sc3d_c = _sc3d.dropna(subset=[c for c in _req if c in _sc3d.columns])
+            _sc3d_s = _sc3d_c.sample(min(3000, len(_sc3d_c)), random_state=42)
 
-                _fig_3d = _px_ext.scatter_3d(
-                    _sc3d_s, x="_year_f", y="sequence_length", z=_z_col,
-                    color=_clr, hover_name=_hn, opacity=0.65, height=520,
-                    labels={
-                        "_year_f": T("obs_3d_x"),
-                        "sequence_length": T("obs_3d_y"),
-                        _z_col: _z_lbl,
-                    },
+            _z_use = _z_col if _z_col else _y_col
+            _z_lbl_use = _z_lbl_f if _z_lbl_f else _d3_y_lbl
+            _lbl_map = {_x_col: _d3_x_lbl, _y_col: _d3_y_lbl}
+            if _z_col:
+                _lbl_map[_z_col] = _z_lbl_f
+
+            _fig_3d = _px_ext.scatter_3d(
+                _sc3d_s, x=_x_col, y=_y_col, z=_z_use,
+                color=_clr_col, hover_name=_hn_col, opacity=0.65, height=520,
+                labels=_lbl_map,
+            )
+            _fig_3d.update_traces(marker=dict(size=3))
+            _layout_3d = dict(
+                title=dict(text=_d3_title, font=dict(size=13), x=0),
+                paper_bgcolor="rgba(0,0,0,0)",
+                scene=dict(
+                    xaxis_title=_d3_x_lbl,
+                    yaxis_title=_d3_y_lbl,
+                    zaxis_title=_z_lbl_use,
+                ),
+                margin=dict(t=40, b=10, l=10, r=10),
+            )
+            if _z_tick_text:
+                _layout_3d["scene"]["zaxis"] = dict(
+                    ticktext=_z_tick_text, tickvals=_z_tick_vals,
                 )
-                _fig_3d.update_traces(marker=dict(size=3))
-                _layout_3d = dict(
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    scene=dict(
-                        xaxis_title=T("obs_3d_x"),
-                        yaxis_title=T("obs_3d_y"),
-                        zaxis_title=_z_lbl,
-                    ),
-                    margin=dict(t=10, b=10, l=10, r=10),
-                )
-                if _z_tick_text:
-                    _layout_3d["scene"]["zaxis"] = dict(
-                        ticktext=_z_tick_text, tickvals=_z_tick_vals,
-                    )
-                _fig_3d.update_layout(**_layout_3d)
-                st.plotly_chart(_fig_3d, use_container_width=True)
-            except Exception as _3d_err:
-                st.warning(f"3D scatter error: {_3d_err}")
-        else:
-            st.info(T("obs_3d_no_data"))
+            _fig_3d.update_layout(**_layout_3d)
+            st.plotly_chart(_fig_3d, use_container_width=True)
+        except Exception as _3d_err:
+            st.warning(f"3D scatter error: {_3d_err}")
 
 # ── Batch Source Overview ─────────────────────────────────────────────────────
 _raw_files = st.session_state.get("raw_files", [])
