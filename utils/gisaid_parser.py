@@ -209,6 +209,9 @@ def infer_host_from_isolate(isolate_name: str) -> str:
     name_lower = isolate_name.lower()
     if "/environment/" in name_lower:
         return "Environment"
+    # Human respiratory pathogens that don't follow A/B influenza naming
+    if name_lower.startswith(("hrsv/", "rsv/", "mers-cov/", "sars-cov/")):
+        return "Human"
     avian = [
         # Ducks (dabbling & diving)
         "duck", "mallard", "pintail", "teal", "wigeon", "shoveler", "gadwall",
@@ -310,6 +313,8 @@ def extract_location_from_isolate(isolate_name: str) -> str:
         "sheep", "goat", "deer", "rabbit",
         # Environment
         "environment",
+        # Non-influenza respiratory pathogens (hRSV, MERS-CoV, SARS-CoV)
+        "hrsv", "rsv", "mers-cov", "sars-cov",
     }
     for part in parts:
         if part.lower() in skip:
@@ -364,6 +369,19 @@ def convert_df_to_fasta(df: pd.DataFrame) -> str:
 # ---------------------------------------------------------------------------
 
 _HXNX_RE = re.compile(r"(H\d+N\d+)")
+
+# Known influenza gene segment names — used to auto-detect field order in
+# 6-field GISAID headers.  GISAID avian batch downloads emit the header as:
+#   >isolate | SEGMENT | SUBTYPE | date | accession | clade
+# while human/normalized downloads emit:
+#   >isolate | SUBTYPE | SEGMENT | date | accession | clade
+# We detect the avian variant by checking whether parts[1] is a segment name.
+_KNOWN_SEGMENTS = frozenset({
+    "HA", "NA", "PB1", "PB2", "PA", "NP", "MP", "NS",
+    "HE", "P3",          # less-common influenza segments
+    "M1", "M2",          # MP gene products sometimes labelled individually
+    "NEP", "NS1", "NS2", # NS gene products
+})
 
 # Standard GISAID date format tried first as a fast path
 _FAST_DATE_FMT = "%Y-%m-%d"
@@ -422,7 +440,24 @@ def _batch_parse_dates(date_strings: list) -> list:
 def _parse_header(header: str) -> dict:
     """Parse one FASTA header line (without leading '>') into a metadata dict.
 
-    Handles both standard GISAID (6 fields) and v1.0 normalized (9 fields).
+    Handles four GISAID/respiratory-virus header variants:
+
+    1. v1.0 Normalized (9 fields):
+         name | type | subtype | segment | location | host | date | clade | accession
+
+    2. Standard GISAID human/B (6 fields, subtype before segment):
+         isolate | subtype | segment | date | accession | clade
+         e.g. >A/Novosibirsk/.../2024|A_/_H3N2|HA|2024-01-17|EPI_ISL_...|3C.2a1b
+
+    3. GISAID avian batch download (6 fields, SEGMENT before subtype):
+         isolate | segment | subtype | date | accession | clade
+         e.g. >A/goose/Zambia/05/2008|PB2|A_/_H3N8|07.2008|EPI_ISL_88225|
+         Detected automatically: parts[1] is a known segment name (HA, NA, …)
+
+    4. hRSV / 3-field (3 fields):
+         isolate | accession | date
+         e.g. >hRSV/B/Argentina/.../2016|EPI_ISL_1074181|2016-04-18
+
     All fields default to 'Unknown' / None gracefully — never raises.
     """
     parts = [p.strip() for p in header.split("|")]
@@ -440,13 +475,42 @@ def _parse_header(header: str) -> dict:
             "clade":     parts[7] if n > 7 else "Unknown",
             "accession": parts[8] if n > 8 else "Unknown",
         }
-    else:
-        # Standard GISAID: isolate | subtype | segment | date | accession | clade
+    elif n <= 3:
+        # hRSV / short format: isolate | accession | date
+        # (also handles degenerate 1- or 2-field headers gracefully)
         raw_isolate = parts[0] if n > 0 else "Unknown"
         metadata = {
             "isolate":   raw_isolate,
-            "subtype":   parts[1] if n > 1 else "Unknown",
-            "segment":   parts[2] if n > 2 else "Unknown",
+            "subtype":   "Unknown",
+            "segment":   "Unknown",
+            "accession": parts[1] if n > 1 else "Unknown",
+            "_raw_date": parts[2] if n > 2 else "",
+            "clade":     "Unknown",
+            "host":      infer_host_from_isolate(raw_isolate),
+            "location":  extract_location_from_isolate(raw_isolate),
+        }
+    else:
+        # 4–8 field headers: detect avian vs human field order by checking
+        # whether parts[1] is a known segment name.
+        #   Avian batch:  isolate | SEGMENT | subtype | date | accession | clade
+        #   Human/B std:  isolate | subtype | SEGMENT | date | accession | clade
+        raw_isolate = parts[0] if n > 0 else "Unknown"
+        p1 = parts[1] if n > 1 else "Unknown"
+        p2 = parts[2] if n > 2 else "Unknown"
+
+        if p1.upper() in _KNOWN_SEGMENTS:
+            # Avian format: segment is in position 1, subtype in position 2
+            segment = p1
+            subtype  = p2
+        else:
+            # Human/B format: subtype is in position 1, segment in position 2
+            subtype  = p1
+            segment  = p2
+
+        metadata = {
+            "isolate":   raw_isolate,
+            "subtype":   subtype,
+            "segment":   segment,
             "_raw_date": parts[3] if n > 3 else "",
             "accession": parts[4] if n > 4 else "Unknown",
             "clade":     parts[5] if n > 5 else "Unknown",
