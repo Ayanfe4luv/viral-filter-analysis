@@ -209,12 +209,54 @@ def infer_host_from_isolate(isolate_name: str) -> str:
     name_lower = isolate_name.lower()
     if "/environment/" in name_lower:
         return "Environment"
-    avian = ["duck", "goose", "chicken", "swan", "gull", "teal",
-             "quail", "pheasant", "pigeon", "turkey", "ostrich", "wild bird"]
+    avian = [
+        # Ducks (dabbling & diving)
+        "duck", "mallard", "pintail", "teal", "wigeon", "shoveler", "gadwall",
+        "pochard", "scaup", "eider", "goldeneye", "bufflehead", "canvasback",
+        "redhead", "smew", "merganser", "ruddy duck",
+        # Geese & swans
+        "goose", "brant", "barnacle", "greylag", "snow goose", "canada goose",
+        "bean goose", "white-fronted goose", "swan", "whooper", "mute swan",
+        # Pelicans & large waterbirds
+        "pelican", "cormorant", "gannet", "booby", "frigatebird",
+        "egret", "heron", "bittern", "ibis", "spoonbill", "stork", "crane",
+        # Gulls, terns & seabirds
+        "gull", "tern", "skua", "puffin", "guillemot", "razorbill", "auk",
+        "petrel", "shearwater", "albatross", "fulmar", "gannet", "penguin",
+        # Waders & shorebirds
+        "plover", "sandpiper", "dunlin", "knot", "turnstone", "curlew", "godwit",
+        "whimbrel", "snipe", "woodcock", "avocet", "oystercatcher", "lapwing",
+        "redshank", "greenshank", "phalarope", "stint", "ruff", "dowitcher",
+        "yellowlegs", "knot",
+        # Gallinaceous (poultry & game)
+        "chicken", "hen", "broiler", "layer", "turkey", "quail", "pheasant",
+        "partridge", "grouse", "guinea fowl", "peafowl", "chukar", "junglefowl",
+        # Ratites
+        "ostrich", "emu", "cassowary", "rhea",
+        # Rails, coots & allies
+        "coot", "moorhen", "rail", "crake", "gallinule",
+        # Pigeons & doves
+        "pigeon", "dove",
+        # Passerines & other landbirds
+        "sparrow", "starling", "crow", "magpie", "raven", "rook", "jackdaw",
+        "finch", "bunting", "thrush", "blackbird", "robin", "warbler",
+        "swift", "martin", "swallow",
+        # Raptors
+        "hawk", "eagle", "falcon", "owl", "kite", "harrier", "buzzard",
+        "kestrel", "vulture", "osprey",
+        # Generic / catch-all avian terms
+        "wild bird", "avian", "bird", "poultry", "waterfowl", "shorebird",
+        "wader", "seabird", "passerine", "raptor", "fowl", "gallinaceous",
+    ]
     if any(k in name_lower for k in avian):
         return "Avian"
-    mammal = ["swine", "pig", "ferret", "mink", "seal",
-              "cat", "dog", "horse", "tiger", "leopard"]
+    mammal = [
+        "swine", "pig", "ferret", "mink", "seal", "sea lion", "walrus",
+        "cat", "dog", "horse", "tiger", "leopard", "lion", "bear",
+        "bat", "fox", "raccoon", "otter", "badger", "mongoose", "civet",
+        "whale", "dolphin", "porpoise", "bovine", "cattle", "cow",
+        "sheep", "goat", "deer", "elk", "moose", "rabbit", "rodent",
+    ]
     if any(k in name_lower for k in mammal):
         return "Mammalian"
     if (isolate_name.startswith("A/") or isolate_name.startswith("B/")) \
@@ -233,8 +275,42 @@ def extract_location_from_isolate(isolate_name: str) -> str:
     if not isolate_name:
         return "Unknown"
     parts = [p.strip() for p in isolate_name.split("/") if p.strip()]
-    skip = {"a", "b", "duck", "goose", "chicken", "swan", "gull", "swine",
-            "pig", "ferret", "mink", "seal", "environment", "wild bird", "avian"}
+    # All host keywords that should be skipped when extracting location.
+    # Keep in sync with the avian/mammal lists in infer_host_from_isolate().
+    skip = {
+        "a", "b",
+        # Avian
+        "duck", "mallard", "pintail", "teal", "wigeon", "shoveler", "gadwall",
+        "pochard", "scaup", "eider", "goldeneye", "bufflehead", "canvasback",
+        "redhead", "smew", "merganser",
+        "goose", "brant", "barnacle", "greylag",
+        "swan", "whooper",
+        "pelican", "cormorant", "gannet", "booby", "frigatebird",
+        "egret", "heron", "bittern", "ibis", "spoonbill", "stork", "crane",
+        "gull", "tern", "skua", "puffin", "guillemot", "razorbill", "auk",
+        "petrel", "shearwater", "albatross", "fulmar", "penguin",
+        "plover", "sandpiper", "dunlin", "knot", "turnstone", "curlew", "godwit",
+        "whimbrel", "snipe", "woodcock", "avocet", "oystercatcher", "lapwing",
+        "redshank", "greenshank", "phalarope", "stint", "ruff", "dowitcher",
+        "chicken", "hen", "broiler", "layer", "turkey", "quail", "pheasant",
+        "partridge", "grouse", "peafowl", "chukar", "junglefowl",
+        "ostrich", "emu",
+        "coot", "moorhen", "rail", "crake", "gallinule",
+        "pigeon", "dove",
+        "sparrow", "starling", "crow", "magpie", "raven", "rook", "jackdaw",
+        "finch", "warbler", "swift", "martin", "swallow",
+        "hawk", "eagle", "falcon", "owl", "kite", "harrier", "buzzard",
+        "kestrel", "vulture", "osprey",
+        "wild bird", "avian", "bird", "poultry", "waterfowl", "shorebird",
+        "wader", "seabird", "passerine", "raptor", "fowl", "gallinaceous",
+        # Mammalian
+        "swine", "pig", "ferret", "mink", "seal", "cat", "dog", "horse",
+        "tiger", "leopard", "lion", "bear", "bat", "fox", "raccoon",
+        "otter", "badger", "civet", "whale", "dolphin", "bovine", "cattle",
+        "sheep", "goat", "deer", "rabbit",
+        # Environment
+        "environment",
+    }
     for part in parts:
         if part.lower() in skip:
             continue
