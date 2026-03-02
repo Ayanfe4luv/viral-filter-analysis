@@ -736,5 +736,18 @@
   "export_seg_folder_split_info":   "Dataset will be split into segment-specific FASTA and CSV files inside each folder.",
   "export_seg_folder_generate":     "Generate Segment ZIP",
   "export_seg_folder_download":     "Download Segment Folder ZIP ({n} segments)",
-  "export_seg_folder_none_selected": "No segments selected. Please select at least one segment."
+  "export_seg_folder_none_selected": "No segments selected. Please select at least one segment.",
+
+  "obs_none_option":           "(none)",
+  "obs_top_field_selector":    "Show top by",
+  "obs_donut_field_selector":  "Donut field",
+  "obs_sankey_level1":         "Level 1 (Source)",
+  "obs_sankey_level2":         "Level 2 (Middle)",
+  "obs_sankey_level3":         "Level 3 (Target)",
+  "obs_adv_chart_title":       "Chart title",
+  "obs_icicle_path_fields":    "Hierarchy path (ordered)",
+  "obs_3d_x_axis":             "X axis",
+  "obs_3d_y_axis":             "Y axis",
+  "obs_3d_z_axis":             "Z axis",
+  "obs_3d_color_field":        "Color by"
 }

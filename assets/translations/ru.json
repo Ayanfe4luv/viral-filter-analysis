@@ -736,5 +736,18 @@
   "export_seg_folder_split_info":   "Датасет будет разделён на FASTA и CSV по сегментам внутри каждой папки.",
   "export_seg_folder_generate":     "Создать ZIP сегментов",
   "export_seg_folder_download":     "Скачать ZIP папок сегментов ({n} сегментов)",
-  "export_seg_folder_none_selected": "Сегменты не выбраны. Выберите хотя бы один."
+  "export_seg_folder_none_selected": "Сегменты не выбраны. Выберите хотя бы один.",
+
+  "obs_none_option":           "(нет)",
+  "obs_top_field_selector":    "Показать топ по полю",
+  "obs_donut_field_selector":  "Поле диаграммы",
+  "obs_sankey_level1":         "Уровень 1 (Источник)",
+  "obs_sankey_level2":         "Уровень 2 (Середина)",
+  "obs_sankey_level3":         "Уровень 3 (Цель)",
+  "obs_adv_chart_title":       "Заголовок диаграммы",
+  "obs_icicle_path_fields":    "Иерархия пути (по порядку)",
+  "obs_3d_x_axis":             "Ось X",
+  "obs_3d_y_axis":             "Ось Y",
+  "obs_3d_z_axis":             "Ось Z",
+  "obs_3d_color_field":        "Цвет по полю"
 }
