@@ -96,6 +96,25 @@ if len(_an_contrib) > 1:
         st.caption(T("timeline_scope_all_caption", n=len(_an_contrib)))
     st.divider()
 
+# ── Segment scope selector — shown whenever the active data contains multiple
+#    segments (single-file multi-segment GISAID datasets or merged files).
+#    Lets the user focus charts on one or more specific gene segments.
+_an_segs_avail = sorted(_df["segment"].dropna().unique().tolist()) if "segment" in _df.columns else []
+if len(_an_segs_avail) > 1:
+    _an_seg_sel = st.multiselect(
+        T("analytics_segment_scope_label"),
+        options=_an_segs_avail,
+        default=st.session_state.get("an_seg_scope", []),
+        key="an_seg_scope",
+        placeholder=T("analytics_segment_scope_placeholder"),
+        help=T("analytics_segment_scope_help"),
+    )
+    if _an_seg_sel:
+        _df = _df[_df["segment"].isin(_an_seg_sel)].copy()
+        _src = f"🧬 {T('analytics_segment_scope_active', segs=', '.join(_an_seg_sel))}"
+        st.caption(f"🧬 {T('analytics_segment_scope_active', segs=', '.join(_an_seg_sel))}")
+    st.divider()
+
 st.caption(T("analytics_dataset_label", n=f"{len(_df):,}", src=_src))
 
 # ---------------------------------------------------------------------------

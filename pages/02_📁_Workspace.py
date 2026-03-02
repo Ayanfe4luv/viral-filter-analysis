@@ -273,14 +273,41 @@ if not active_df.empty:
             c3.metric(T("workspace_earliest"), dates.min().strftime("%Y-%m-%d"))
             c4.metric(T("workspace_latest"),   dates.max().strftime("%Y-%m-%d"))
 
-    if "subtype_clean" in active_df.columns:
-        subtypes = active_df["subtype_clean"].value_counts().head(5)
-        st.markdown(T("workspace_top_subtypes"))
-        st.dataframe(
-            subtypes.reset_index().rename(columns={"index": "Subtype", "subtype_clean": "Count"}),
-            use_container_width=True,
-            hide_index=True,
-        )
+    # ── Top-N summary panels: Subtypes / Segments / Locations / Clades ────────
+    # Build the ordered list of panels to display (skip columns that are all-null)
+    _ws_panel_cfg = [
+        ("subtype_clean", T("workspace_top_subtypes_label"), "🧬"),
+        ("segment",       T("workspace_top_segments"),       "🧩"),
+        ("location",      T("workspace_top_locations"),      "📍"),
+        ("clade_l1",      T("workspace_top_clades"),         "🌿"),
+    ]
+    _ws_panels = [
+        (col, label, icon)
+        for col, label, icon in _ws_panel_cfg
+        if col in active_df.columns
+        and active_df[col].replace("Unknown", pd.NA).notna().any()
+    ]
+    # Fall back to host if we still have fewer than 4 panels
+    if len(_ws_panels) < 4 and "host" in active_df.columns:
+        _ws_panels.append(("host", T("workspace_top_hosts"), "🐦"))
+
+    if _ws_panels:
+        for _row_start in range(0, len(_ws_panels), 2):
+            _row_pair = _ws_panels[_row_start : _row_start + 2]
+            _pcols = st.columns(len(_row_pair))
+            for _ci, (_field, _label, _icon) in enumerate(_row_pair):
+                with _pcols[_ci]:
+                    _vc = (
+                        active_df[_field]
+                        .replace("Unknown", pd.NA)
+                        .dropna()
+                        .value_counts()
+                        .head(5)
+                        .reset_index()
+                    )
+                    _vc.columns = [_label, T("workspace_count")]
+                    st.markdown(f"**{_icon} {_label}**")
+                    st.dataframe(_vc, use_container_width=True, hide_index=True)
 
     if len(active_df) > 10_000:
         st.warning(T("sidebar_large_dataset_warning"))
