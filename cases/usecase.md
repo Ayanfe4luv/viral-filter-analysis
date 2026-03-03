@@ -1,4 +1,4 @@
-# Vir-Seq-Sift v2.1 — 76 Use Cases for Beginners
+# Vir-Seq-Sift v2.1 — 82 Use Cases for Beginners
 ## Using HA_test_copy1.fasta as Your Example Dataset
 
 ---
@@ -13,13 +13,14 @@ This guide walks you through 76 concrete, step-by-step tasks you can perform in 
 
 Fields in order: Name | Subtype | Segment | Date | EPI_ISL Accession | Clade
 
-The app has six pages accessible via the sidebar navigation (shown below the logo and language selector):
+The app has seven pages accessible via the sidebar navigation (shown below the logo and language selector):
 1. **🌍 Observatory** — KPI dashboard, epidemic curve, clade distribution, virus support grid
 2. **📁 Workspace** — Upload FASTA files, activate datasets, URL fetch
 3. **🔬 Sequence Refinery** — Quality filters, header-component filters, HITL phylogenetic sub-sampling
 4. **🧬 Molecular Timeline** — Persistence and overwintering analysis across seasons
 5. **📊 Analytics** — 10+ chart types and dataset overview gauges
-6. **📋 Export** — Download FASTA, CSV, ZIP bundle, accession lists, session log
+6. **📋 Export** — Download FASTA, CSV, ZIP bundle, accession lists, session log, segment folder structure
+7. **📚 Documentation** — Quick-start guide, feature reference, FASTA header format, use-case library
 
 Vir-Seq-Sift v2.1 supports influenza A (all subtypes including H5N1 avian), influenza B (Victoria and Yamagata lineages), and RSV (types A and B). Multi-virus and multi-host surveillance datasets are fully supported as long as each sequence uses the correct pipe-delimited header format.
 
@@ -1250,24 +1251,28 @@ Vir-Seq-Sift v2.1 supports influenza A (all subtypes including H5N1 avian), infl
 
 ## Use Case 59: Analyze Avian Influenza (H5N1) Header Structure
 
-**Goal:** Understand how Vir-Seq-Sift parses avian influenza headers and correctly identifies the host field.
+**Goal:** Understand how Vir-Seq-Sift parses avian influenza headers and correctly identifies the host and location fields.
 
 **Page:** Workspace
 
 **Step-by-step:**
-1. Prepare a small avian influenza FASTA file. Avian H5N1 headers follow this format:
+1. Prepare a small avian influenza FASTA file. GISAID avian influenza headers follow this 5-part isolate name format:
    ```
    >A/duck/Novosibirsk/12345/2024|A_/_H5N1|HA|2024-03-10|EPI_ISL_987654|
+   >A/common_teal/Chany/892/2018|PB2|A_/_H3N6|2018-09-01|EPI_ISL_333613|
    ```
+   The isolate name always follows the pattern: `Type / Host / Location / ID / Year` — five slash-separated components.
 2. Upload and activate the file via **Workspace**.
-3. In the **Preview: Selected Files** table, examine the **Host** column. The parser infers host from keywords in the strain name field.
-4. The keyword `duck` maps to host = `Avian`. Other avian host keywords recognized by the parser include: `goose`, `chicken`, `swan`, `gull`, `teal`, `quail`, `pheasant`, `turkey`, `wild bird`.
-5. The keyword `human` (or an absence of a recognized animal keyword) maps to host = `Human`. `swine` or `pig` maps to host = `Swine`.
+3. In the **Preview: Selected Files** table, examine the **Host** and **Location** columns. The parser uses a two-step approach:
+   - **Step 1 — keyword scan**: parts[1] and parts[2] of the isolate name are checked against the known avian/mammalian genus database (`_AVIAN_GENERA`, `_MAMMAL_GENERA`) and keyword lists (`_AVIAN_KW`, `_MAMMAL_KW`).
+   - **Step 2 — structural tiebreaker**: if no keyword matches, the slot count decides: **5-part names are always Avian** (the host slot exists); **4-part names are always Human** (GISAID human flu isolates never carry a host slot). This means even unusual or rare bird names like `Podiceps_cristatus` (great crested grebe) are correctly classified as Avian.
+4. Location is extracted by direct slot indexing: **5-part** → `parts[2]` (e.g., Chany, Novosibirsk); **4-part** → `parts[1]`. Common host names like `common_teal` or `duck` are never misidentified as locations.
+5. The **Host Species** column in the Active Dataset panel shows the raw host token verbatim (e.g., `common_teal`, `Podiceps_cristatus`, `duck`) — not just the broad "Avian" category — giving you the exact species for each sequence.
 6. Navigate to **Observatory** and check the KPI cards. A clade field that is blank or shows "Unknown" is normal for newly submitted avian sequences that have not yet been assigned to a clade.
 
-**Expected result:** The preview table shows the **Host** column correctly populated as `Avian` for duck-origin sequences. The **Subtype** column shows `A_/_H5N1`.
+**Expected result:** The preview table shows the **Host** column correctly populated as `Avian` for all avian sequences regardless of how unusual the bird species name is. The **Location** column shows the geographic location (e.g., Chany, Novosibirsk), never the bird species name. The **Subtype** column shows `A_/_H5N1`.
 
-**Tip for beginners:** The host inference step is automatic and keyword-based. If your avian sequences use an unusual host name (e.g., `mallard` instead of `duck`), the parser may not recognize it and will assign `Unknown`. In that case, use the header converter tool in Workspace to standardize the host field before activating the dataset.
+**Tip for beginners:** GISAID human influenza isolate names follow the pattern `A/Location/ID/Year` (4 parts) while avian/animal isolate names follow `A/Host/Location/ID/Year` (5+ parts). This structural difference is the most reliable host discriminator — it works even for rare or Latin species names that are not in the keyword database. The parser uses this rule as its final decision-maker, so no sequence should ever be misclassified as Human when it has 5 or more slash-parts in its isolate name.
 
 ---
 
@@ -1709,4 +1714,70 @@ Vir-Seq-Sift v2.1 supports influenza A (all subtypes including H5N1 avian), infl
 
 ---
 
-*End of 79 Use Cases — Vir-Seq-Sift v2.1 with batch multi-file support*
+---
+
+## Use Case 80: Inspect Host Species Distribution in the Workspace Active Dataset Panel
+
+**Goal:** After activating a mixed-host avian surveillance dataset, use the Host Species panel in the Workspace Active Dataset grid to identify which bird species are represented and in what proportions.
+
+**Page:** Workspace
+
+**Step-by-step:**
+1. Upload and activate a FASTA file containing avian influenza sequences from multiple bird species (e.g., a batch GISAID download from Chany wetland sampling).
+2. After activation, scroll down to the **Active Dataset** section on the **Workspace** page.
+3. You will see a responsive panel grid showing up to five metric panels arranged in pairs. Look for the panel labelled **Top Host Species** (duck icon 🦆).
+4. The panel lists the top-5 bird species (host species tokens) extracted directly from the isolate names, along with their sequence counts. Examples: `common_teal (32)`, `duck (18)`, `Podiceps_cristatus (5)`.
+5. Compare this with the **Top Locations** panel to understand the geographic distribution of samples from each species.
+6. If the dataset contains only human sequences (4-part isolate names), the Host Species panel will not appear — host species is "Unknown" for all human sequences by GISAID convention.
+
+**Expected result:** The Host Species panel shows specific bird species verbatim from the isolate name field. Unusual Latin species names (e.g., `Podiceps_cristatus`) appear without truncation alongside common names like `common_teal` or `duck`.
+
+**Tip for beginners:** The Host Species panel is different from the broad **Host** category (Avian / Human / Mammalian). Host Species gives you the raw species token as submitted to GISAID, while Host gives you the inferred biological category. Use the Host panel in **Analytics** (Pie Chart or Bar Chart, field = Host) for broad surveillance patterns, and use Host Species in the Workspace panel when you need the specific animal source.
+
+---
+
+## Use Case 81: Download Individual Segment FASTAs in the Horizontal Group Grid
+
+**Goal:** After splitting a multi-segment dataset by Segment, download individual FASTA files for specific segments (e.g., HA, NA, PB2) directly from the horizontal download grid — without downloading the full ZIP.
+
+**Page:** Sequence Refinery → Export
+
+**Step-by-step:**
+1. Activate a multi-segment FASTA file (e.g., a batch GISAID download containing all 8 influenza gene segments).
+2. Navigate to **Sequence Refinery** and scroll to **Split & Export by Metadata**.
+3. Set **Split Dataset By** to **Segment** and click **Preview Split**. A summary table appears showing all segment groups and their sequence counts.
+4. Navigate to the **Export** page (or scroll down in Refinery if the split controls are there).
+5. Below the ZIP button, you will see all segment groups displayed in a **horizontal 4-per-row grid**. Unlike the old interface that showed only the top 5, the grid displays every segment found in your dataset — typically 8 for full influenza (HA, NA, PB2, PB1, PA, NP, MP, NS).
+6. Click the button for the segment you want (e.g., `📄 HA (52)`). Your browser immediately downloads a FASTA file named `[prefix]_Segment_HA.fasta` containing only HA sequences.
+7. Repeat for any other segments you need. Use the **Download ZIP (N groups)** button at the top to get all segments in one archive.
+
+**Expected result:** Each individual download button in the grid delivers a single-segment FASTA file. The grid shows all segments — not just the first five. No "N more groups — use ZIP" truncation message appears.
+
+**Tip for beginners:** The horizontal grid layout was designed for datasets split into 8–10 groups (like influenza segments). Previously only the top 5 were shown individually; now all groups appear. If you have split by a field with many values (e.g., 50 clades), use the ZIP download — the grid will still show all 50 buttons, but the ZIP is faster for bulk downloads.
+
+---
+
+## Use Case 82: Generate a Localised Segment Folder ZIP with README and Summary CSV
+
+**Goal:** Create a ZIP archive with one folder per influenza segment — each containing the relevant FASTA sequences, a README describing the segment in your chosen language, and a root-level summary CSV — ready for sharing with a collaborator.
+
+**Page:** Export
+
+**Step-by-step:**
+1. Activate a multi-segment FASTA dataset and navigate to **Export**.
+2. Scroll to the **Segment Folder Structure** expander (Section 2b) and expand it.
+3. In the **ZIP archive name** field, enter a project name (e.g., `Novosibirsk_2024_segments`).
+4. Under **Preset quick-selectors**, click **All 10** to select all standard influenza segments (HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3). Checkboxes for segments with sequences show their counts (e.g., `HA (52)`).
+5. Under **Folder contents**, choose `Populate from active/filtered dataset`. (Choose `Empty folders (scaffold only)` if you want just the folder structure for use as a project template, or `Populate from Split & Export above` if you previously split by segment in the Refinery.)
+6. Check **README per folder** (enabled by default). This adds a `README.txt` to each segment folder with the segment name, project name, sequence count, and "Generated by VirSift" — all in your currently selected language (English or Russian).
+7. Check **Dataset summary CSV**. This adds a `dataset_summary.csv` file at the ZIP root listing all segments and their sequence counts. The column headers match your active language ("Segment"/"Sequences" in English; "Сегмент"/"Последовательности" in Russian).
+8. Observe the **Live folder structure preview** updating in real time below the checkboxes to reflect your choices.
+9. Click **Generate Segment ZIP** and then click the resulting download button.
+
+**Expected result:** A ZIP file containing one subfolder per selected segment. Each subfolder holds a `.fasta` file, a `.csv` metadata file, and a `README.txt`. The ZIP root contains `dataset_summary.csv`. All text content in the README and CSV headers is in your chosen interface language.
+
+**Tip for beginners:** This workflow produces a standard GISAID multi-segment project folder structure in a single click. Share the ZIP with a collaborator — they receive the correct sequences, organized by gene, with a human-readable description in each folder. The README language adapts automatically: switch the app to Russian before clicking **Generate** and all README files will be in Russian. No manual editing required.
+
+---
+
+*End of 82 Use Cases — Vir-Seq-Sift v2.1 with batch multi-file support, host species inference v3d.3, and localised segment folder export*
