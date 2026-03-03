@@ -22,7 +22,7 @@ Performance target: 10K sequences in < 5 seconds.
 
 # Increment whenever host-inference, location-extraction, or field-order
 # detection logic changes — forces @st.cache_data to reparse all files.
-_PARSER_VERSION = "v3d.2"
+_PARSER_VERSION = "v3d.3"
 
 import gzip
 import hashlib
@@ -201,44 +201,68 @@ def parse_flexible_date(date_str: str):
 
 
 def infer_host_from_isolate(isolate_name: str) -> str:
-    """Infer host species from GISAID isolate naming conventions.
+    """Infer host class from GISAID isolate naming conventions.
 
-    Handles three host-naming patterns found in GISAID:
-      1. Common English name (substring):  A/duck/...,  A/common_teal/...
-      2. Latin binomial (Genus_species):   A/Anas_platyrhynchos/...,  A/Gallus_gallus/...
-      3. Compound underscore name:         A/mallard_duck/..., A/domestic_chicken/...
+    PRIMARY RULE — GISAID Influenza A/B structural slot count:
+      Avian/animal: A / HOST / Location / ID / Year  → ≥5 slash parts
+      Human:        A / Location / ID / Year          → 4 slash parts
 
-    Detection order:
-      - Environment check (early exit)
-      - Known non-influenza pathogen prefixes (hRSV, RSV, MERS, SARS → Human)
-      - Part-by-part classification via _classify_isolate_part() covering all three
-        naming patterns above (checks positions 1 and 2 of the slash-split isolate)
-      - Substring scan of the whole lowercased isolate string for legacy patterns
-      - A/ or B/ with ≥2 slashes → Human (only if nothing else matched)
+    GISAID human influenza isolate names NEVER carry a host field — the slot
+    count is therefore the most reliable discriminator. Keyword scanning is
+    used first to identify the specific host class (Avian vs Mammalian), and
+    the slot count is the tiebreaker when no keyword matches.
+
+    Detection order for influenza A/B:
+      1. Keyword scan at positions 1 & 2 (covers Latin binomials, compound
+         underscore names, and common English names)
+      2. Slot count ≥5 with no keyword match → Avian (structural guarantee:
+         an unrecognised host token at slot 1 is still a non-human animal)
+      3. Slot count 4 → Human
+      4. Slot count ≤3 → Human (degenerate/short format)
+
+    For non-influenza pathogens (hRSV, MERS-CoV, SARS-CoV): caught by prefix
+    check before any slot logic.  Legacy whole-string keyword scan is kept as
+    a final safety net for non-A/B or unusual database entries.
     """
     if not isolate_name:
         return "Unknown"
     name_lower = isolate_name.lower()
     if "/environment/" in name_lower:
         return "Environment"
-    # Known non-influenza human respiratory pathogens
+    # Known non-influenza human respiratory pathogens — always Human
     if name_lower.startswith(("hrsv/", "rsv/", "mers-cov/", "sars-cov/")):
         return "Human"
 
-    # --- Part-by-part classification (positions 1 and 2 in the slash-split) ---
-    # Covers Latin binomials AND compound underscore names.
-    # e.g. A/Anas_platyrhynchos/Chany_Lake/10/03 → parts[1]="Anas_platyrhynchos"
-    #      A/common_teal/Italy/1494/2006          → parts[1]="common_teal"
     _slash_parts = isolate_name.split("/")
-    for _pos in (1, 2):
-        if _pos < len(_slash_parts):
-            _result = _classify_isolate_part(_slash_parts[_pos])
-            if _result:
-                return _result
+    _n = len(_slash_parts)
+    _is_flu_AB = isolate_name.startswith("A/") or isolate_name.startswith("B/")
 
-    # --- Legacy substring scan across the whole lowercase isolate string ---
-    # Catches multi-word names stored with spaces rather than underscores,
-    # and any edge-case patterns not caught by part-level classification.
+    if _is_flu_AB:
+        # ── Step 1: keyword scan at slots 1 and 2 ─────────────────────────────
+        # Slot 1 is always the host for avian/animal sequences.
+        # Slot 2 is checked as a secondary guard for unusual host placements.
+        for _pos in (1, 2):
+            if _pos < _n:
+                _r = _classify_isolate_part(_slash_parts[_pos])
+                if _r:
+                    return _r
+
+        # ── Step 2: structural tiebreaker ──────────────────────────────────────
+        # No keyword match — use slot count to decide.
+        # GISAID convention:
+        #   ≥5 parts  →  animal source (host is at slot 1, even if unrecognised)
+        #    4 parts  →  human source (no host slot at all)
+        if _n >= 5:
+            # e.g. A/Podiceps_cristatus/Chany/3/2019  (grebe — genus not in DB)
+            # Structural guarantee: 5-part A/B influenza names ALWAYS originate
+            # from a non-human host.  Return Avian rather than falling through to
+            # the ≥2-slash Human fallback that existed previously.
+            return "Avian"
+        # 4-part or shorter A/B → Human
+        return "Human"
+
+    # ── Keyword scan for non-A/B and non-standard formats ─────────────────────
+    # Kept as a safety net for unusual pathogen prefixes or old database exports.
     _legacy_avian = [
         "duck", "mallard", "pintail", "teal", "wigeon", "shoveler", "gadwall",
         "pochard", "scaup", "eider", "goldeneye", "bufflehead", "canvasback",
@@ -277,65 +301,88 @@ def infer_host_from_isolate(isolate_name: str) -> str:
     if any(k in name_lower for k in _legacy_mammal):
         return "Mammalian"
 
-    # --- Final fallback: A/ or B/ prefix with ≥2 slashes → Human ---
-    # Only reached if none of the above matched, so it is genuinely a
-    # human-sourced isolate with a location name in position 1.
-    if (isolate_name.startswith("A/") or isolate_name.startswith("B/")) \
-            and isolate_name.count("/") >= 2:
-        return "Human"
     return "Unknown"
 
 
 def extract_location_from_isolate(isolate_name: str) -> str:
     """Extract geographic location from a GISAID isolate name.
 
-    For A/Location/Strain/Year    → returns Location.
-    For A/duck/Location/...       → skips "duck", returns Location.
-    For A/Anas_platyrhynchos/...  → skips Latin binomial, returns Location.
-    For A/common_teal/Location/.. → skips compound name, returns Location.
-    Preserves Cyrillic characters (e.g., Новосибирск).
+    Uses direct slot indexing for standard GISAID influenza A/B headers —
+    this is faster and immune to unrecognised host-name tokens:
 
-    Uses _classify_isolate_part() so it stays in sync with infer_host_from_isolate()
-    automatically — no separate skip-set to maintain.
+      Avian (≥5 parts):  A / HOST / Location / ID / Year  → slot 2 = Location
+      Human (4 parts):   A / Location / ID / Year          → slot 1 = Location
+
+    Falls back to the skip-based scanner for RSV, MERS, SARS and other
+    non-influenza or non-standard-length formats.
+
+    Preserves Cyrillic characters (e.g., Новосибирск).
     """
     if not isolate_name:
         return "Unknown"
     parts = [p.strip() for p in isolate_name.split("/") if p.strip()]
+    n = len(parts)
+    _is_flu_AB = isolate_name.startswith("A/") or isolate_name.startswith("B/")
 
-    # Fixed single-character type prefixes to always skip
+    # Direct slot rule for standard influenza A/B ─────────────────────────────
+    if _is_flu_AB and n >= 5:
+        # Avian/animal format: [A, HOST, Location, ID, Year, …]
+        return parts[2]
+
+    if _is_flu_AB and n == 4:
+        # Human format: [A, Location, ID, Year]
+        return parts[1]
+
+    # Skip-based scanner for RSV, MERS, SARS and other formats ───────────────
+    # Skips the type prefix and any recognisable host tokens, then returns the
+    # first remaining part as the location.
     _always_skip = frozenset({"a", "b", "hrsv", "rsv", "mers-cov", "sars-cov",
                                "environment"})
-
     for part in parts:
         p_low = part.lower()
-        # Skip type prefix and environment
         if p_low in _always_skip:
             continue
-        # Skip any part that is classifiable as a host (avian or mammalian)
         if _classify_isolate_part(part) is not None:
             continue
-        # This part is not a type prefix and not a host — treat as location
         return part
 
-    # Fallback: return whatever is at position 1 if nothing else matched
-    return parts[1] if len(parts) > 1 else "Unknown"
+    return parts[1] if n > 1 else "Unknown"
 
 
 def _extract_host_species(isolate_name: str) -> str:
     """Return the specific host-species token from a GISAID isolate name.
 
-    Walks the slash-delimited parts of the isolate name and returns the first
-    part that _classify_isolate_part() recognises as a host descriptor
-    (e.g. 'common_teal', 'Anas_platyrhynchos', 'duck', 'Sus_scrofa').
+    For standard influenza A/B with ≥5 slash parts the host token is
+    always at slot 1 (A / HOST / Location / ID / Year).  It is returned
+    directly regardless of whether the name is in our keyword database —
+    e.g. 'Podiceps_cristatus' will be returned verbatim even though that
+    genus is not yet in _AVIAN_GENERA.
 
-    Returns 'Unknown' for human isolates (where no host part is present) and
-    for any name where no host token is found.
+    For 4-part human influenza (A / Location / ID / Year) returns 'Unknown'
+    because there is no host slot.
+
+    For RSV and other formats falls back to the skip-based scanner that
+    walks parts and returns the first part recognised by _classify_isolate_part().
     """
     if not isolate_name:
         return "Unknown"
     _skip = frozenset({"a", "b", "hrsv", "rsv", "mers-cov", "sars-cov", "environment"})
-    for part in isolate_name.split("/"):
-        part = part.strip()
+    parts = [p.strip() for p in isolate_name.split("/") if p.strip()]
+    n = len(parts)
+    _is_flu_AB = isolate_name.startswith("A/") or isolate_name.startswith("B/")
+
+    # Direct slot rule for standard influenza A/B ─────────────────────────────
+    if _is_flu_AB and n >= 5:
+        # Slot 1 = host species token (always present in avian/animal records)
+        token = parts[1]
+        return token if token.lower() not in _skip else "Unknown"
+
+    if _is_flu_AB and n == 4:
+        # Human format — no host slot
+        return "Unknown"
+
+    # Fallback: skip-based scanner for RSV and other formats ──────────────────
+    for part in parts:
         if not part or part.lower() in _skip:
             continue
         if _classify_isolate_part(part) is not None:
