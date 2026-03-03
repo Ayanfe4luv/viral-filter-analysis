@@ -20,6 +20,10 @@ UTF-8 MANDATORY: caller must decode bytes as UTF-8 before passing file_content.
 Performance target: 10K sequences in < 5 seconds.
 """
 
+# Increment whenever host-inference, location-extraction, or field-order
+# detection logic changes — forces @st.cache_data to reparse all files.
+_PARSER_VERSION = "v3d.2"
+
 import gzip
 import hashlib
 import io
@@ -36,7 +40,8 @@ import streamlit as st
 # ---------------------------------------------------------------------------
 
 @st.cache_data(show_spinner=False)
-def parse_gisaid_fasta(file_content: str, file_name: str) -> tuple:
+def parse_gisaid_fasta(file_content: str, file_name: str,
+                       _version: str = _PARSER_VERSION) -> tuple:
     """Parse a UTF-8 decoded GISAID FASTA string into a list of metadata dicts.
 
     Decorated with @st.cache_data — parses ONCE per unique (file_content, file_name).
@@ -314,6 +319,28 @@ def extract_location_from_isolate(isolate_name: str) -> str:
 
     # Fallback: return whatever is at position 1 if nothing else matched
     return parts[1] if len(parts) > 1 else "Unknown"
+
+
+def _extract_host_species(isolate_name: str) -> str:
+    """Return the specific host-species token from a GISAID isolate name.
+
+    Walks the slash-delimited parts of the isolate name and returns the first
+    part that _classify_isolate_part() recognises as a host descriptor
+    (e.g. 'common_teal', 'Anas_platyrhynchos', 'duck', 'Sus_scrofa').
+
+    Returns 'Unknown' for human isolates (where no host part is present) and
+    for any name where no host token is found.
+    """
+    if not isolate_name:
+        return "Unknown"
+    _skip = frozenset({"a", "b", "hrsv", "rsv", "mers-cov", "sars-cov", "environment"})
+    for part in isolate_name.split("/"):
+        part = part.strip()
+        if not part or part.lower() in _skip:
+            continue
+        if _classify_isolate_part(part) is not None:
+            return part
+    return "Unknown"
 
 
 def compute_sequence_hash(sequence: str) -> str:
@@ -613,29 +640,33 @@ def _parse_header(header: str) -> dict:
 
     if n >= 9:
         # v1.0 Normalized: name | type | subtype | segment | location | host | date | clade | accession
+        _v1_host = parts[5] if n > 5 else "Unknown"
         metadata = {
-            "isolate":   parts[0],
-            "subtype":   parts[2] if n > 2 else "Unknown",
-            "segment":   parts[3] if n > 3 else "Unknown",
-            "location":  parts[4] if n > 4 else "Unknown",
-            "host":      parts[5] if n > 5 else "Unknown",
-            "_raw_date": parts[6] if n > 6 else "",
-            "clade":     parts[7] if n > 7 else "Unknown",
-            "accession": parts[8] if n > 8 else "Unknown",
+            "isolate":      parts[0],
+            "subtype":      parts[2] if n > 2 else "Unknown",
+            "segment":      parts[3] if n > 3 else "Unknown",
+            "location":     parts[4] if n > 4 else "Unknown",
+            "host":         _v1_host,
+            "host_species": _extract_host_species(parts[0]) if _v1_host == "Unknown"
+                            else _v1_host,
+            "_raw_date":    parts[6] if n > 6 else "",
+            "clade":        parts[7] if n > 7 else "Unknown",
+            "accession":    parts[8] if n > 8 else "Unknown",
         }
     elif n <= 3:
         # hRSV / short format: isolate | accession | date
         # (also handles degenerate 1- or 2-field headers gracefully)
         raw_isolate = parts[0] if n > 0 else "Unknown"
         metadata = {
-            "isolate":   raw_isolate,
-            "subtype":   "Unknown",
-            "segment":   "Unknown",
-            "accession": parts[1] if n > 1 else "Unknown",
-            "_raw_date": parts[2] if n > 2 else "",
-            "clade":     "Unknown",
-            "host":      infer_host_from_isolate(raw_isolate),
-            "location":  extract_location_from_isolate(raw_isolate),
+            "isolate":      raw_isolate,
+            "subtype":      "Unknown",
+            "segment":      "Unknown",
+            "accession":    parts[1] if n > 1 else "Unknown",
+            "_raw_date":    parts[2] if n > 2 else "",
+            "clade":        "Unknown",
+            "host":         infer_host_from_isolate(raw_isolate),
+            "host_species": _extract_host_species(raw_isolate),
+            "location":     extract_location_from_isolate(raw_isolate),
         }
     else:
         # 4–8 field headers: detect avian vs human field order by checking
@@ -656,14 +687,15 @@ def _parse_header(header: str) -> dict:
             segment  = p2
 
         metadata = {
-            "isolate":   raw_isolate,
-            "subtype":   subtype,
-            "segment":   segment,
-            "_raw_date": parts[3] if n > 3 else "",
-            "accession": parts[4] if n > 4 else "Unknown",
-            "clade":     parts[5] if n > 5 else "Unknown",
-            "host":      infer_host_from_isolate(raw_isolate),
-            "location":  extract_location_from_isolate(raw_isolate),
+            "isolate":      raw_isolate,
+            "subtype":      subtype,
+            "segment":      segment,
+            "_raw_date":    parts[3] if n > 3 else "",
+            "accession":    parts[4] if n > 4 else "Unknown",
+            "clade":        parts[5] if n > 5 else "Unknown",
+            "host":         infer_host_from_isolate(raw_isolate),
+            "host_species": _extract_host_species(raw_isolate),
+            "location":     extract_location_from_isolate(raw_isolate),
         }
 
     # subtype_clean: "A_/_H3N2" → "H3N2", "H5N1" stays as-is
