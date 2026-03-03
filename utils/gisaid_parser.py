@@ -198,70 +198,83 @@ def parse_flexible_date(date_str: str):
 def infer_host_from_isolate(isolate_name: str) -> str:
     """Infer host species from GISAID isolate naming conventions.
 
-    GISAID standard patterns:
-      Human:       A/Location/Strain/Year  or  B/Location/Strain/Year
-      Avian:       A/duck/Location/...  (or goose, chicken, gull, etc.)
-      Mammalian:   A/swine/Location/...  (or ferret, mink, seal, etc.)
-      Environment: A/.../Environment/...
+    Handles three host-naming patterns found in GISAID:
+      1. Common English name (substring):  A/duck/...,  A/common_teal/...
+      2. Latin binomial (Genus_species):   A/Anas_platyrhynchos/...,  A/Gallus_gallus/...
+      3. Compound underscore name:         A/mallard_duck/..., A/domestic_chicken/...
+
+    Detection order:
+      - Environment check (early exit)
+      - Known non-influenza pathogen prefixes (hRSV, RSV, MERS, SARS → Human)
+      - Part-by-part classification via _classify_isolate_part() covering all three
+        naming patterns above (checks positions 1 and 2 of the slash-split isolate)
+      - Substring scan of the whole lowercased isolate string for legacy patterns
+      - A/ or B/ with ≥2 slashes → Human (only if nothing else matched)
     """
     if not isolate_name:
         return "Unknown"
     name_lower = isolate_name.lower()
     if "/environment/" in name_lower:
         return "Environment"
-    # Human respiratory pathogens that don't follow A/B influenza naming
+    # Known non-influenza human respiratory pathogens
     if name_lower.startswith(("hrsv/", "rsv/", "mers-cov/", "sars-cov/")):
         return "Human"
-    avian = [
-        # Ducks (dabbling & diving)
+
+    # --- Part-by-part classification (positions 1 and 2 in the slash-split) ---
+    # Covers Latin binomials AND compound underscore names.
+    # e.g. A/Anas_platyrhynchos/Chany_Lake/10/03 → parts[1]="Anas_platyrhynchos"
+    #      A/common_teal/Italy/1494/2006          → parts[1]="common_teal"
+    _slash_parts = isolate_name.split("/")
+    for _pos in (1, 2):
+        if _pos < len(_slash_parts):
+            _result = _classify_isolate_part(_slash_parts[_pos])
+            if _result:
+                return _result
+
+    # --- Legacy substring scan across the whole lowercase isolate string ---
+    # Catches multi-word names stored with spaces rather than underscores,
+    # and any edge-case patterns not caught by part-level classification.
+    _legacy_avian = [
         "duck", "mallard", "pintail", "teal", "wigeon", "shoveler", "gadwall",
         "pochard", "scaup", "eider", "goldeneye", "bufflehead", "canvasback",
         "redhead", "smew", "merganser", "ruddy duck",
-        # Geese & swans
         "goose", "brant", "barnacle", "greylag", "snow goose", "canada goose",
         "bean goose", "white-fronted goose", "swan", "whooper", "mute swan",
-        # Pelicans & large waterbirds
         "pelican", "cormorant", "gannet", "booby", "frigatebird",
         "egret", "heron", "bittern", "ibis", "spoonbill", "stork", "crane",
-        # Gulls, terns & seabirds
         "gull", "tern", "skua", "puffin", "guillemot", "razorbill", "auk",
-        "petrel", "shearwater", "albatross", "fulmar", "gannet", "penguin",
-        # Waders & shorebirds
+        "petrel", "shearwater", "albatross", "fulmar", "penguin",
         "plover", "sandpiper", "dunlin", "knot", "turnstone", "curlew", "godwit",
         "whimbrel", "snipe", "woodcock", "avocet", "oystercatcher", "lapwing",
         "redshank", "greenshank", "phalarope", "stint", "ruff", "dowitcher",
-        "yellowlegs", "knot",
-        # Gallinaceous (poultry & game)
-        "chicken", "hen", "broiler", "layer", "turkey", "quail", "pheasant",
-        "partridge", "grouse", "guinea fowl", "peafowl", "chukar", "junglefowl",
-        # Ratites
-        "ostrich", "emu", "cassowary", "rhea",
-        # Rails, coots & allies
+        "yellowlegs", "chicken", "hen", "broiler", "layer", "turkey", "quail",
+        "pheasant", "partridge", "grouse", "guinea fowl", "peafowl", "chukar",
+        "junglefowl", "ostrich", "emu", "cassowary", "rhea",
         "coot", "moorhen", "rail", "crake", "gallinule",
-        # Pigeons & doves
         "pigeon", "dove",
-        # Passerines & other landbirds
         "sparrow", "starling", "crow", "magpie", "raven", "rook", "jackdaw",
         "finch", "bunting", "thrush", "blackbird", "robin", "warbler",
         "swift", "martin", "swallow",
-        # Raptors
         "hawk", "eagle", "falcon", "owl", "kite", "harrier", "buzzard",
         "kestrel", "vulture", "osprey",
-        # Generic / catch-all avian terms
         "wild bird", "avian", "bird", "poultry", "waterfowl", "shorebird",
         "wader", "seabird", "passerine", "raptor", "fowl", "gallinaceous",
     ]
-    if any(k in name_lower for k in avian):
+    if any(k in name_lower for k in _legacy_avian):
         return "Avian"
-    mammal = [
+    _legacy_mammal = [
         "swine", "pig", "ferret", "mink", "seal", "sea lion", "walrus",
         "cat", "dog", "horse", "tiger", "leopard", "lion", "bear",
         "bat", "fox", "raccoon", "otter", "badger", "mongoose", "civet",
         "whale", "dolphin", "porpoise", "bovine", "cattle", "cow",
         "sheep", "goat", "deer", "elk", "moose", "rabbit", "rodent",
     ]
-    if any(k in name_lower for k in mammal):
+    if any(k in name_lower for k in _legacy_mammal):
         return "Mammalian"
+
+    # --- Final fallback: A/ or B/ prefix with ≥2 slashes → Human ---
+    # Only reached if none of the above matched, so it is genuinely a
+    # human-sourced isolate with a location name in position 1.
     if (isolate_name.startswith("A/") or isolate_name.startswith("B/")) \
             and isolate_name.count("/") >= 2:
         return "Human"
@@ -271,55 +284,35 @@ def infer_host_from_isolate(isolate_name: str) -> str:
 def extract_location_from_isolate(isolate_name: str) -> str:
     """Extract geographic location from a GISAID isolate name.
 
-    For A/Location/Strain/Year → Location.
-    For A/duck/Location/Strain/Year → Location (skips host keyword).
+    For A/Location/Strain/Year    → returns Location.
+    For A/duck/Location/...       → skips "duck", returns Location.
+    For A/Anas_platyrhynchos/...  → skips Latin binomial, returns Location.
+    For A/common_teal/Location/.. → skips compound name, returns Location.
     Preserves Cyrillic characters (e.g., Новосибирск).
+
+    Uses _classify_isolate_part() so it stays in sync with infer_host_from_isolate()
+    automatically — no separate skip-set to maintain.
     """
     if not isolate_name:
         return "Unknown"
     parts = [p.strip() for p in isolate_name.split("/") if p.strip()]
-    # All host keywords that should be skipped when extracting location.
-    # Keep in sync with the avian/mammal lists in infer_host_from_isolate().
-    skip = {
-        "a", "b",
-        # Avian
-        "duck", "mallard", "pintail", "teal", "wigeon", "shoveler", "gadwall",
-        "pochard", "scaup", "eider", "goldeneye", "bufflehead", "canvasback",
-        "redhead", "smew", "merganser",
-        "goose", "brant", "barnacle", "greylag",
-        "swan", "whooper",
-        "pelican", "cormorant", "gannet", "booby", "frigatebird",
-        "egret", "heron", "bittern", "ibis", "spoonbill", "stork", "crane",
-        "gull", "tern", "skua", "puffin", "guillemot", "razorbill", "auk",
-        "petrel", "shearwater", "albatross", "fulmar", "penguin",
-        "plover", "sandpiper", "dunlin", "knot", "turnstone", "curlew", "godwit",
-        "whimbrel", "snipe", "woodcock", "avocet", "oystercatcher", "lapwing",
-        "redshank", "greenshank", "phalarope", "stint", "ruff", "dowitcher",
-        "chicken", "hen", "broiler", "layer", "turkey", "quail", "pheasant",
-        "partridge", "grouse", "peafowl", "chukar", "junglefowl",
-        "ostrich", "emu",
-        "coot", "moorhen", "rail", "crake", "gallinule",
-        "pigeon", "dove",
-        "sparrow", "starling", "crow", "magpie", "raven", "rook", "jackdaw",
-        "finch", "warbler", "swift", "martin", "swallow",
-        "hawk", "eagle", "falcon", "owl", "kite", "harrier", "buzzard",
-        "kestrel", "vulture", "osprey",
-        "wild bird", "avian", "bird", "poultry", "waterfowl", "shorebird",
-        "wader", "seabird", "passerine", "raptor", "fowl", "gallinaceous",
-        # Mammalian
-        "swine", "pig", "ferret", "mink", "seal", "cat", "dog", "horse",
-        "tiger", "leopard", "lion", "bear", "bat", "fox", "raccoon",
-        "otter", "badger", "civet", "whale", "dolphin", "bovine", "cattle",
-        "sheep", "goat", "deer", "rabbit",
-        # Environment
-        "environment",
-        # Non-influenza respiratory pathogens (hRSV, MERS-CoV, SARS-CoV)
-        "hrsv", "rsv", "mers-cov", "sars-cov",
-    }
+
+    # Fixed single-character type prefixes to always skip
+    _always_skip = frozenset({"a", "b", "hrsv", "rsv", "mers-cov", "sars-cov",
+                               "environment"})
+
     for part in parts:
-        if part.lower() in skip:
+        p_low = part.lower()
+        # Skip type prefix and environment
+        if p_low in _always_skip:
             continue
+        # Skip any part that is classifiable as a host (avian or mammalian)
+        if _classify_isolate_part(part) is not None:
+            continue
+        # This part is not a type prefix and not a host — treat as location
         return part
+
+    # Fallback: return whatever is at position 1 if nothing else matched
     return parts[1] if len(parts) > 1 else "Unknown"
 
 
@@ -369,6 +362,161 @@ def convert_df_to_fasta(df: pd.DataFrame) -> str:
 # ---------------------------------------------------------------------------
 
 _HXNX_RE = re.compile(r"(H\d+N\d+)")
+
+# ---------------------------------------------------------------------------
+# Latin genus → host-type lookup tables
+# These cover the genera that appear in GISAID isolate names as
+# scientific binomials (e.g. A/Anas_platyrhynchos/Chany_Lake/10/03).
+# Only the genus (first word of Genus_species) is needed.
+# ---------------------------------------------------------------------------
+_AVIAN_GENERA: frozenset = frozenset({
+    # Anatidae — ducks, geese, swans
+    "anas", "aythya", "bucephala", "clangula", "mergus", "mergellus",
+    "oxyura", "netta", "marmaronetta", "spatula", "anas",
+    "anser", "branta", "chen", "cygnus", "coscoroba",
+    # Pelecanidae / Sulidae / Fregatidae
+    "pelecanus", "phalacrocorax", "morus", "sula", "fregata",
+    # Ardeidae / Ciconiidae / Threskiornithidae
+    "ardea", "egretta", "bubulcus", "nycticorax", "ciconia", "mycteria",
+    "threskiornis", "plegadis", "platalea",
+    # Charadriiformes — waders, gulls, terns, auks
+    "calidris", "tringa", "charadrius", "pluvialis", "limosa", "numenius",
+    "gallinago", "scolopax", "recurvirostra", "haematopus", "vanellus",
+    "phalaropus", "philomachus", "actitis", "arenaria",
+    "larus", "chroicocephalus", "leucophaeus", "sterna", "thalasseus",
+    "anous", "catharacta", "stercorarius", "fratercula", "alca",
+    "uria", "cepphus", "alle",
+    # Procellariidae — petrels, shearwaters, albatrosses
+    "puffinus", "calonectris", "fulmarus", "oceanodroma", "diomedea",
+    "thalassarche", "macronectes",
+    # Galliformes — poultry & game
+    "gallus", "meleagris", "coturnix", "phasianus", "numida",
+    "perdix", "alectoris", "colinus", "callipepla", "lophura",
+    "chrysolophus", "polyplectron", "afropavo", "pavo",
+    # Gruiformes — rails, coots, cranes
+    "fulica", "gallinula", "rallus", "crex", "porzana", "grus",
+    "balearica", "anthropoides",
+    # Columbiformes
+    "columba", "streptopelia", "zenaida", "geopelia",
+    # Passeriformes
+    "passer", "sturnus", "corvus", "pica", "pyrrhocorax", "turdus",
+    "erithacus", "fringilla", "emberiza", "hirundo", "delichon",
+    "ficedula", "sylvia", "phylloscopus", "acrocephalus",
+    # Accipitriformes / Falconiformes — raptors
+    "accipiter", "buteo", "aquila", "hieraaetus", "haliaeetus",
+    "pandion", "milvus", "circus", "elanus", "falco",
+    # Strigiformes — owls
+    "strix", "bubo", "asio", "tyto", "athene",
+    # Sphenisciformes — penguins
+    "spheniscus", "pygoscelis", "aptenodytes", "eudyptes",
+    # Struthioniformes / Casuariiformes — ratites
+    "struthio", "dromaius", "rhea", "casuarius",
+})
+
+_MAMMAL_GENERA: frozenset = frozenset({
+    # Suidae
+    "sus",
+    # Mustelidae — ferret, mink, otter, badger
+    "mustela", "neovison", "neogale", "lutra", "meles",
+    # Phocidae / Otariidae — seals, sea lions
+    "halichoerus", "phoca", "mirounga", "zalophus", "arctocephalus",
+    # Felidae — cats, tigers, leopards
+    "felis", "panthera", "neofelis", "prionailurus",
+    # Canidae
+    "canis", "vulpes", "nyctereutes",
+    # Equidae
+    "equus",
+    # Chiroptera — bats (orders and genera)
+    "rhinolophus", "pteropus", "tadarida", "myotis", "pipistrellus",
+    "miniopterus", "hipposideros", "cynopterus",
+    # Cetacea — whales, dolphins
+    "balaena", "tursiops", "delphinus", "phocoena", "orcinus",
+    "megaptera", "balaenoptera",
+    # Bovidae / Cervidae / Camelidae
+    "bos", "bubalus", "ovis", "capra", "cervus", "alces", "odocoileus",
+    "rangifer", "camelus", "lama",
+    # Viverridae / Herpestidae
+    "viverra", "civettictis", "herpestes",
+    # Procyonidae
+    "procyon",
+    # Lagomorpha
+    "oryctolagus", "lepus",
+})
+
+# Flat sets of common-name keyword tokens used for fast word-level matching
+# inside compound host parts like "common_teal", "mallard_duck", "domestic_chicken".
+# These mirror the lists in infer_host_from_isolate() but as a frozenset for
+# O(1) lookup when splitting underscore-separated isolate parts.
+_AVIAN_KW: frozenset = frozenset({
+    "duck", "mallard", "pintail", "teal", "wigeon", "shoveler", "gadwall",
+    "pochard", "scaup", "eider", "goldeneye", "bufflehead", "canvasback",
+    "redhead", "smew", "merganser",
+    "goose", "brant", "barnacle", "greylag", "swan", "whooper",
+    "pelican", "cormorant", "gannet", "booby", "frigatebird",
+    "egret", "heron", "bittern", "ibis", "spoonbill", "stork", "crane",
+    "gull", "tern", "skua", "puffin", "guillemot", "razorbill", "auk",
+    "petrel", "shearwater", "albatross", "fulmar", "penguin",
+    "plover", "sandpiper", "dunlin", "knot", "turnstone", "curlew", "godwit",
+    "whimbrel", "snipe", "woodcock", "avocet", "oystercatcher", "lapwing",
+    "redshank", "greenshank", "phalarope", "stint", "ruff", "dowitcher",
+    "chicken", "hen", "broiler", "layer", "turkey", "quail", "pheasant",
+    "partridge", "grouse", "peafowl", "chukar", "junglefowl",
+    "ostrich", "emu", "cassowary", "rhea",
+    "coot", "moorhen", "rail", "crake", "gallinule",
+    "pigeon", "dove",
+    "sparrow", "starling", "crow", "magpie", "raven", "rook", "jackdaw",
+    "finch", "warbler", "swift", "martin", "swallow",
+    "hawk", "eagle", "falcon", "owl", "kite", "harrier", "buzzard",
+    "kestrel", "vulture", "osprey",
+    "bird", "avian", "poultry", "waterfowl", "shorebird",
+    "wader", "seabird", "passerine", "raptor", "fowl",
+    "domestic", "wild",   # context words: "domestic_chicken", "wild_bird"
+})
+
+_MAMMAL_KW: frozenset = frozenset({
+    "swine", "pig", "boar", "pork",
+    "ferret", "mink", "otter", "badger",
+    "seal", "sealion",
+    "cat", "feline", "tiger", "leopard", "lion",
+    "dog", "canine", "fox", "raccoon",
+    "horse", "equine",
+    "bat",
+    "whale", "dolphin", "porpoise",
+    "bovine", "cattle", "cow", "bull", "calf",
+    "sheep", "ovine", "goat", "deer", "elk", "moose", "rabbit",
+    "mongoose", "civet",
+})
+
+
+def _classify_isolate_part(part: str) -> str | None:
+    """Classify a single slash-delimited isolate part as 'Avian', 'Mammalian',
+    or None (not a recognisable host token).
+
+    Handles three naming conventions found in GISAID isolate names:
+      1. Exact common name:        "duck", "chicken", "ferret"
+      2. Compound underscore name: "common_teal", "mallard_duck", "domestic_chicken"
+      3. Latin binomial:           "Anas_platyrhynchos", "Gallus_gallus", "Sus_scrofa"
+    """
+    p = part.lower().strip()
+    if not p:
+        return None
+    words = p.replace("-", "_").split("_")
+    genus = words[0]
+
+    # Latin genus lookup (fast O(1) frozenset check)
+    if genus in _AVIAN_GENERA:
+        return "Avian"
+    if genus in _MAMMAL_GENERA:
+        return "Mammalian"
+
+    # Word-level common-name lookup (handles "common_teal" → "teal" is avian)
+    for w in words:
+        if w in _AVIAN_KW:
+            return "Avian"
+        if w in _MAMMAL_KW:
+            return "Mammalian"
+
+    return None
 
 # Known influenza gene segment names — used to auto-detect field order in
 # 6-field GISAID headers.  GISAID avian batch downloads emit the header as:
