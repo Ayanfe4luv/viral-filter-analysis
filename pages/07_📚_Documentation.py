@@ -65,10 +65,12 @@ methodology JSON, or a ZIP bundle of all three. Use *Split & Export* to
 create one FASTA file per subtype / clade / host automatically.
 
 > **Segment Folder Structure:** The Export page includes a dedicated section
-> to generate a ZIP archive pre-populated with empty segment folders
-> (HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3). Optionally tick *Also split
-> dataset into segment folders* to auto-populate each folder with its FASTA
-> and CSV files.
+> to generate a ZIP archive with segment folders (HA, NA, PB2, PB1, PA, NP,
+> MP, NS, HE, P3). Choose from three content modes: *Empty folders (scaffold
+> only)*, *Populate from active/filtered dataset*, or *Populate from Split &
+> Export above* — the third option appears automatically when you have
+> previewed a segment-level split in the Split & Export section above it,
+> routing that exact data directly into the folder ZIP.
 """,
     "ru": """\
 ### Шаг 1 — 📁 Загрузите данные
@@ -113,9 +115,11 @@ JSON методологии или ZIP-архива. *Разделить и эк
 FASTA-файл на субтип / клад / хозяина автоматически.
 
 > **Структура папок сегментов:** раздел *Структура папок сегментов* создаёт
-> ZIP-архив с пустыми папками (HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3).
-> Установив флажок *Разбить данные по папкам сегментов*, данные автоматически
-> распределяются по соответствующим папкам в FASTA и CSV.
+> ZIP-архив с папками сегментов (HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3).
+> Выберите один из трёх режимов: *Пустые папки (только структура)*,
+> *Заполнить из активного/отфильтрованного датасета*, или *Заполнить из
+> «Разделить и Экспортировать» выше* — третий вариант появляется автоматически
+> при наличии предпросмотра разбивки по сегментам в разделе выше.
 """,
 }
 
@@ -124,21 +128,21 @@ _FEATURE_TABLE = {
 | Page | Key Actions | Notes |
 |------|-------------|-------|
 | **🌍 Observatory** | Live KPI dashboard (sequence count, avg length, subtypes, date span); epidemic curve; top subtypes/hosts/segments/locations/clades; Sankey flow, Icicle hierarchy, 3D Scatter (via sidebar checkbox) | Landing page when no data loaded; auto-switches to dashboard when dataset is active |
-| **📁 Workspace** | File upload (`.fasta` `.fa` `.gz` `.zip` `.aln-fasta`); per-file stats table (subtypes, segments, date span); Select All / ⚡ Activate All; merge; **2×2 Top Metrics grid** (subtypes, segments, locations, clades) after activation | Activate before any other step; multiple files merged at once |
+| **📁 Workspace** | File upload (`.fasta` `.fa` `.gz` `.zip` `.aln-fasta`); per-file stats table (subtypes, segments, date span); Select All / ⚡ Activate All; merge; **2×2 Top Metrics grid** (subtypes, segments, locations, host species) after activation | Activate before any other step; multiple files merged at once |
 | **🔬 Sequence Refinery** | Min/max length, N-run filter, dedup, subtype/clade/date/host/location filters, HITL Smart Sampler; **📁 per-file scope**; dataset-aware strategy recommendation box; per-strategy sensitivity guide | Scope selector focuses all filters on one source file |
-| **🧬 Molecular Timeline** | Clone persistence matrix, per-month representative selection, diagnostics, methodology snapshot; **📁 per-file scope**; **🔍 5-dimensional scope filter** (segment, subtype, host, location, clade) | Needs `sequence_hash`; scope analyses each file's clusters independently |
-| **📊 Analytics** | 10+ chart types, custom palettes, dataset-overview gauges (count, avg length, completeness); **📁 per-file scope**; **🔍 5-dimensional scope filter** (segment, subtype, host, location, clade) | Scope filters AND-combined; only non-trivial dimensions shown |
-| **📋 Export** | FASTA, CSV, JSON, ZIP bundle, accession list (.txt), session log, split-by-group export; Segment Folder Structure ZIP with **preset buttons** (Surface, Polymerase, Internal), sequence counts on labels, optional README per folder, optional summary CSV, live folder-structure preview; per-source-file downloads | Always export before closing the browser |
+| **🧬 Molecular Timeline** | Clone persistence matrix, per-month representative selection, diagnostics, methodology snapshot; **📁 per-file scope**; **🔍 6-dimensional scope filter** (segment, subtype, host, host species, location, clade) | Needs `sequence_hash`; scope analyses each file's clusters independently |
+| **📊 Analytics** | 10+ chart types, custom palettes, dataset-overview gauges (count, avg length, completeness); **📁 per-file scope**; **🔍 6-dimensional scope filter** (segment, subtype, host, host species, location, clade) | Scope filters AND-combined; only non-trivial dimensions shown |
+| **📋 Export** | FASTA, CSV, JSON, ZIP bundle, accession list (.txt), session log, split-by-group export; Segment Folder Structure ZIP with **preset buttons** (Surface, Polymerase, Internal), sequence counts on labels, optional README per folder, optional summary CSV, live folder-structure preview, **3-mode data source** (empty / from dataset / from Split & Export); per-source-file downloads | Always export before closing the browser |
 """,
     "ru": """\
 | Страница | Ключевые действия | Примечания |
 |----------|-------------------|-----------|
 | **🌍 Обсерватория** | Дашборд КПЭ (количество, средняя длина, субтипы, диапазон дат); эпидемическая кривая; топ субтипов/хозяев/сегментов/местоположений/кладов; диаграмма Санки, иерархия-сосулька, 3D-разброс (флажок в боковой панели) | Целевая страница без данных; автопереключается в дашборд при активном наборе |
-| **📁 Рабочее пространство** | Загрузка файла (`.fasta` `.fa` `.gz` `.zip` `.aln-fasta`); таблица статистики; Выбрать всё / ⚡ Активировать всё; слияние; **сетка 2×2** (субтипы, сегменты, местоположения, клады) после активации | Сначала активируйте; несколько файлов объединяются сразу |
+| **📁 Рабочее пространство** | Загрузка файла (`.fasta` `.fa` `.gz` `.zip` `.aln-fasta`); таблица статистики; Выбрать всё / ⚡ Активировать всё; слияние; **сетка 2×2** (субтипы, сегменты, местоположения, виды-хозяева) после активации | Сначала активируйте; несколько файлов объединяются сразу |
 | **🔬 Очиститель последовательностей** | Мин./макс. длина, N-серии, дедупликация, фильтры по субтипу/кладу/дате/хозяину, сэмплер HITL; **📁 scope по файлу**; рекомендательный блок стратегии; руководство по чувствительности | Scope фокусирует все фильтры на одном исходном файле |
-| **🧬 Молекулярная временная шкала** | Матрица устойчивости клонов, представители по месяцам, диагностика; **📁 scope по файлу**; **🔍 5-мерный фильтр** (сегмент, субтип, хозяин, местоположение, клад) | Нужен `sequence_hash`; scope анализирует кластеры каждого файла отдельно |
-| **📊 Аналитика** | 10+ типов диаграмм, палитры, датасет-метрики; **📁 scope по файлу**; **🔍 5-мерный фильтр** (сегмент, субтип, хозяин, местоположение, клад) | Фильтры объединяются через И; показываются только нетривиальные измерения |
-| **📋 Экспорт** | FASTA, CSV, JSON, ZIP, список аккессий (.txt), журнал сессии, экспорт по группам; структура папок сегментов с **кнопками быстрого выбора** (Поверхностные, Полимераза, Внутренние), счётчики последовательностей, README на папку, сводный CSV, превью структуры; загрузка по исходным файлам | Обязательно экспортируйте перед закрытием браузера |
+| **🧬 Молекулярная временная шкала** | Матрица устойчивости клонов, представители по месяцам, диагностика; **📁 scope по файлу**; **🔍 6-мерный фильтр** (сегмент, субтип, хозяин, вид-хозяин, местоположение, клад) | Нужен `sequence_hash`; scope анализирует кластеры каждого файла отдельно |
+| **📊 Аналитика** | 10+ типов диаграмм, палитры, датасет-метрики; **📁 scope по файлу**; **🔍 6-мерный фильтр** (сегмент, субтип, хозяин, вид-хозяин, местоположение, клад) | Фильтры объединяются через И; показываются только нетривиальные измерения |
+| **📋 Экспорт** | FASTA, CSV, JSON, ZIP, список аккессий (.txt), журнал сессии, экспорт по группам; структура папок сегментов с **кнопками быстрого выбора** (Поверхностные, Полимераза, Внутренние), счётчики, README, сводный CSV, превью; **3 режима содержимого** (пустые / из датасета / из «Разделить и Экспортировать»); загрузка по исходным файлам | Обязательно экспортируйте перед закрытием браузера |
 """,
 }
 
@@ -155,8 +159,8 @@ _TIPS_FAQ = {
 | **Filtered vs Active** | Most pages prefer the *filtered* dataset if one exists, falling back to the full *active* dataset. The source label shows which is in use. |
 | **Language Toggle** | Switch between English and Russian at any time from the sidebar — all labels, buttons, and charts update immediately. |
 | **Batch Multi-File** | Upload several FASTA files and click **⚡ Activate All** to merge them instantly. Once merged, Sequence Refinery, Analytics and Molecular Timeline all display a **📁 File Scope** radio at the top — switch to any source file to analyse it independently, then back to *All files (merged)* for the full view. |
-| **Multi-Dimensional Scope** | After selecting a source file, open the **🔍 Scope Filters** expander in Analytics or Timeline to add up to 5 independent dimension filters (segment, subtype, host, location, clade). Useful for isolating e.g. only avian H5N1 HA sequences from a particular location in a large multi-segment batch. |
-| **Host Inference** | Host is inferred from the isolate name — no separate field required. The parser uses Latin genus names (`Anas_platyrhynchos` → Avian), compound English species names (`common_teal` → Avian, `domestic_pig` → Mammalian), and RSV/MERS/SARS prefixes. Sequences with ambiguous names fall back to "Unknown". |
+| **Multi-Dimensional Scope** | After selecting a source file, open the **🔍 Scope Filters** expander in Analytics or Timeline to add up to 6 independent dimension filters (segment, subtype, host, **host species**, location, clade). Use *Host* to filter broadly (Avian / Human) and *Host Species* to zoom into specific birds (common_teal, Anas_platyrhynchos, duck, etc.). |
+| **Host Inference** | Host is inferred from the isolate name — no separate field required. The parser uses Latin genus names (`Anas_platyrhynchos` → Avian), compound English species names (`common_teal` → Avian, `domestic_pig` → Mammalian), and RSV/MERS/SARS prefixes. A separate `host_species` column captures the exact species token, enabling fine-grained filtering in Analytics and Timeline. Sequences with ambiguous names fall back to "Unknown". |
 
 ---
 
@@ -208,8 +212,8 @@ _TIPS_FAQ = {
 | **Фильтрованный vs активный** | Большинство страниц используют фильтрованный датасет, если он существует, иначе — полный активный. |
 | **Переключение языка** | Переключайтесь между English и Русским в любое время из боковой панели. |
 | **Пакетная обработка файлов** | Загрузите несколько FASTA-файлов и нажмите **⚡ Активировать все** для мгновенного слияния. После слияния Очиститель, Аналитика и Молекулярная шкала показывают **📁 Scope** — выберите файл для анализа по отдельности. |
-| **Многомерный Scope** | После выбора исходного файла откройте **🔍 Фильтры Scope** в Аналитике или Шкале — до 5 независимых измерений (сегмент, субтип, хозяин, местоположение, клад). Удобно для выделения, например, только птичьих H5N1 HA из конкретного региона. |
-| **Определение хозяина** | Хозяин определяется из имени изолята — отдельное поле не требуется. Парсер распознаёт латинские биномы (`Anas_platyrhynchos` → Птицы), составные английские названия (`common_teal` → Птицы), префиксы hRSV/MERS/SARS. При неоднозначности — "Unknown". |
+| **Многомерный Scope** | После выбора исходного файла откройте **🔍 Фильтры Scope** в Аналитике или Шкале — до 6 независимых измерений (сегмент, субтип, хозяин, **вид-хозяин**, местоположение, клад). Используйте *Хозяин* для широкой фильтрации (Птицы / Человек), а *Вид-хозяин* — для конкретных птиц (common_teal, Anas_platyrhynchos, duck и т.д.). |
+| **Определение хозяина** | Хозяин определяется из имени изолята — отдельное поле не требуется. Парсер распознаёт латинские биномы (`Anas_platyrhynchos` → Птицы), составные английские названия (`common_teal` → Птицы), префиксы hRSV/MERS/SARS. Отдельный столбец `host_species` хранит точный токен вида, позволяя тонкую фильтрацию в Аналитике и Шкале. При неоднозначности — "Unknown". |
 
 ---
 

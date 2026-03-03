@@ -508,13 +508,31 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
 
     # ── Content options ───────────────────────────────────────────────────────
     st.divider()
-    _opt_col1, _opt_col2, _opt_col3 = st.columns(3)
-    _split_into_segs = _opt_col1.checkbox(
-        T("export_seg_folder_split_data"),
-        value=False,
-        key="export_seg_split_data",
+
+    # Build available data-source options for the segment folder
+    _seg_src_options = [
+        T("export_seg_source_empty"),
+        T("export_seg_source_from_export"),
+    ]
+    # Offer "from Split & Export" only when a segment-level split has been previewed
+    _split_by_seg_available = (
+        "split_groups_df" in st.session_state
+        and st.session_state.get("split_field_col") == "segment"
+    )
+    if _split_by_seg_available:
+        _seg_src_options.append(T("export_seg_source_from_split"))
+
+    _seg_data_src = st.radio(
+        T("export_seg_data_source_label"),
+        options=_seg_src_options,
+        index=0,
+        key="export_seg_data_source",
+        horizontal=True,
         help=T("export_seg_folder_split_help"),
     )
+    _split_into_segs = _seg_data_src != T("export_seg_source_empty")
+
+    _opt_col2, _opt_col3 = st.columns(2)
     _include_readme = _opt_col2.checkbox(
         T("export_seg_include_readme"),
         value=True,
@@ -527,6 +545,22 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
         key="export_seg_summary",
         help=T("export_seg_include_summary_help"),
     )
+
+    # Determine per-segment counts based on chosen data source
+    def _get_seg_subset(seg: str) -> "pd.DataFrame":
+        """Return rows matching this segment from the appropriate data source."""
+        if _seg_data_src == T("export_seg_source_from_split") and _split_by_seg_available:
+            _grp = st.session_state["split_groups_df"]
+            return _grp[_grp["_split_key"].str.upper() == seg.upper()]
+        # Default: active/filtered export dataset
+        if "segment" in _export_df.columns:
+            return _export_df[_export_df["segment"].str.upper() == seg.upper()]
+        return pd.DataFrame()
+
+    # Recompute counts if using the split source
+    if _seg_data_src == T("export_seg_source_from_split") and _split_by_seg_available:
+        _grp_df = st.session_state["split_groups_df"]
+        _seg_counts = _grp_df["_split_key"].str.upper().value_counts().to_dict()
 
     # ── Live folder-structure preview ─────────────────────────────────────────
     if _selected_segs:
@@ -572,10 +606,8 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
                         _seg_zf.writestr(f"{_seg}/README.txt", _readme_txt)
 
                     # Optional FASTA + CSV data split
-                    if _split_into_segs and "segment" in _export_df.columns:
-                        _seg_subset = _export_df[
-                            _export_df["segment"].str.upper() == _seg.upper()
-                        ]
+                    if _split_into_segs:
+                        _seg_subset = _get_seg_subset(_seg)
                         if not _seg_subset.empty:
                             try:
                                 _seg_fasta = convert_df_to_fasta(_seg_subset)
@@ -586,8 +618,9 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
                                 )
                                 _seg_zf.writestr(
                                     f"{_seg}/{_pfx}_{_seg}_metadata.csv",
-                                    _seg_subset.drop(columns=["sequence"], errors="ignore")
-                                    .to_csv(index=False),
+                                    _seg_subset.drop(
+                                        columns=["sequence", "_split_key"], errors="ignore"
+                                    ).to_csv(index=False),
                                 )
                             except Exception:
                                 pass

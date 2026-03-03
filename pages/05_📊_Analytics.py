@@ -103,6 +103,7 @@ _an_scope_dims = [
     ("segment",       T("analytics_segment_scope_label"),  "🧩", "an_seg_scope"),
     ("subtype_clean", T("analytics_subtype_scope_label"),  "🧬", "an_sub_scope"),
     ("host",          T("analytics_host_scope_label"),     "🐦", "an_host_scope"),
+    ("host_species",  T("analytics_host_species_label"),   "🦆", "an_host_sp_scope"),
     ("location",      T("analytics_location_scope_label"), "📍", "an_loc_scope"),
     ("clade_l1",      T("analytics_clade_scope_label"),    "🌿", "an_clade_scope"),
 ]

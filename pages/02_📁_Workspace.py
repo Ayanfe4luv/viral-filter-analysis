@@ -273,12 +273,13 @@ if not active_df.empty:
             c3.metric(T("workspace_earliest"), dates.min().strftime("%Y-%m-%d"))
             c4.metric(T("workspace_latest"),   dates.max().strftime("%Y-%m-%d"))
 
-    # ── Top-N summary panels: Subtypes / Segments / Locations / Clades ────────
+    # ── Top-N summary panels: Subtypes / Segments / Locations / Clades / Host Species ──
     # Build the ordered list of panels to display (skip columns that are all-null)
     _ws_panel_cfg = [
         ("subtype_clean", T("workspace_top_subtypes_label"), "🧬"),
         ("segment",       T("workspace_top_segments"),       "🧩"),
         ("location",      T("workspace_top_locations"),      "📍"),
+        ("host_species",  T("workspace_top_host_species"),   "🦆"),
         ("clade_l1",      T("workspace_top_clades"),         "🌿"),
     ]
     _ws_panels = [
@@ -287,7 +288,7 @@ if not active_df.empty:
         if col in active_df.columns
         and active_df[col].replace("Unknown", pd.NA).notna().any()
     ]
-    # Fall back to host if we still have fewer than 4 panels
+    # Fall back to host (broad class) if host_species not available
     if len(_ws_panels) < 4 and "host" in active_df.columns:
         _ws_panels.append(("host", T("workspace_top_hosts"), "🐦"))
 
