@@ -381,71 +381,69 @@ if "split_summary" in st.session_state:
     )
     st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
-    exp_col, ind_col = st.columns([3, 2])
+    # — ZIP of all groups (full width)
+    if n_groups > 100:
+        st.warning(T("export_split_large_warning", n=n_groups, seqs=n_seqs))
 
-    # — ZIP of all groups
-    with exp_col:
-        if n_groups > 100:
-            st.warning(T("export_split_large_warning", n=n_groups, seqs=n_seqs))
-
-        if st.button(
-            T("export_split_zip_btn", n=n_groups, seqs=f"{n_seqs:,}"),
-            type="primary",
-            use_container_width=True,
-        ):
-            with st.spinner(T("export_split_generating", n=n_groups)):
-                zip_buf = io.BytesIO()
-                with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
-                    for key, grp in groups_df.groupby("_split_key"):
-                        safe = (str(key)
-                                .replace("/","_").replace("\\","_")
-                                .replace("|","_").replace(" ","_")
-                                .replace(":","_").replace("*","_")
-                                .replace("?","_").replace('"','_')
-                                .replace("<","_").replace(">","_"))
-                        grp_clean = grp.drop(columns=["_split_key"])
-                        content   = convert_df_to_fasta(grp_clean)
-                        zf.writestr(
-                            f"{st.session_state['split_label']}_{safe}.fasta",
-                            content.encode("utf-8"),
-                        )
-                zip_buf.seek(0)
-                _split_zip_name = f"{_pfx}_split_by_{st.session_state['split_label']}.zip"
-                st.download_button(
-                    label=T("export_split_download_zip", n=n_groups),
-                    data=zip_buf.getvalue(),
-                    file_name=_split_zip_name,
-                    mime="application/zip",
-                    use_container_width=True,
-                    key="dl_split_zip",
-                    help=f"📄 {_split_zip_name} · rename prefix in sidebar",
-                )
-                st.success(T("export_split_zip_success", n=n_groups))
-
-    # — Individual downloads (top 5 groups)
-    with ind_col:
-        st.caption(T("export_split_individual_caption"))
-        top5 = summary_df.head(5)[st.session_state["split_label"]].tolist()
-        for key in top5:
-            safe = (str(key)
-                    .replace("/","_").replace("\\","_")
-                    .replace("|","_").replace(" ","_"))
-            grp   = groups_df[groups_df["_split_key"] == key].drop(columns=["_split_key"])
-            n_g   = len(grp)
-            disp  = str(key)[:28] + "…" if len(str(key)) > 28 else str(key)
-            fasta_g = convert_df_to_fasta(grp)
-            _grp_fname = f"{_pfx}_{st.session_state['split_label']}_{safe}.fasta"
+    if st.button(
+        T("export_split_zip_btn", n=n_groups, seqs=f"{n_seqs:,}"),
+        type="primary",
+        use_container_width=True,
+    ):
+        with st.spinner(T("export_split_generating", n=n_groups)):
+            zip_buf = io.BytesIO()
+            with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                for key, grp in groups_df.groupby("_split_key"):
+                    safe = (str(key)
+                            .replace("/","_").replace("\\","_")
+                            .replace("|","_").replace(" ","_")
+                            .replace(":","_").replace("*","_")
+                            .replace("?","_").replace('"','_')
+                            .replace("<","_").replace(">","_"))
+                    grp_clean = grp.drop(columns=["_split_key"])
+                    content   = convert_df_to_fasta(grp_clean)
+                    zf.writestr(
+                        f"{st.session_state['split_label']}_{safe}.fasta",
+                        content.encode("utf-8"),
+                    )
+            zip_buf.seek(0)
+            _split_zip_name = f"{_pfx}_split_by_{st.session_state['split_label']}.zip"
             st.download_button(
-                label=f"📄 {disp}  ({n_g} seqs)",
-                data=fasta_g.encode("utf-8"),
-                file_name=_grp_fname,
-                mime="text/plain",
+                label=T("export_split_download_zip", n=n_groups),
+                data=zip_buf.getvalue(),
+                file_name=_split_zip_name,
+                mime="application/zip",
                 use_container_width=True,
-                key=f"dl_grp_{safe[:40]}",
-                help=f"📄 {_grp_fname} · rename prefix in sidebar",
+                key="dl_split_zip",
+                help=f"📄 {_split_zip_name} · rename prefix in sidebar",
             )
-        if n_groups > 5:
-            st.caption(T("export_split_more", extra=n_groups - 5))
+            st.success(T("export_split_zip_success", n=n_groups))
+
+    # — Individual downloads — ALL groups in a horizontal 4-per-row grid
+    st.caption(T("export_split_individual_caption"))
+    _all_keys = summary_df[st.session_state["split_label"]].tolist()
+    _ind_cols = st.columns(4)
+    for _ki, _ikey in enumerate(_all_keys):
+        _isafe = (str(_ikey)
+                  .replace("/","_").replace("\\","_")
+                  .replace("|","_").replace(" ","_")
+                  .replace(":","_").replace("*","_")
+                  .replace("?","_").replace('"','_')
+                  .replace("<","_").replace(">","_"))
+        _igrp    = groups_df[groups_df["_split_key"] == _ikey].drop(columns=["_split_key"])
+        _in_g    = len(_igrp)
+        _idisp   = str(_ikey)[:20] + "…" if len(str(_ikey)) > 20 else str(_ikey)
+        _ifasta  = convert_df_to_fasta(_igrp)
+        _igrp_fn = f"{_pfx}_{st.session_state['split_label']}_{_isafe}.fasta"
+        _ind_cols[_ki % 4].download_button(
+            label=f"📄 {_idisp}  ({_in_g})",
+            data=_ifasta.encode("utf-8"),
+            file_name=_igrp_fn,
+            mime="text/plain",
+            use_container_width=True,
+            key=f"dl_grp_{_isafe[:40]}",
+            help=f"📄 {_igrp_fn} · rename prefix in sidebar",
+        )
 
     if st.button(T("export_split_clear"), use_container_width=True):
         for k in ("split_groups_df","split_field_col","split_label","split_summary"):
@@ -533,18 +531,22 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
     _split_into_segs = _seg_data_src != T("export_seg_source_empty")
 
     _opt_col2, _opt_col3 = st.columns(2)
-    _include_readme = _opt_col2.checkbox(
+    _opt_col2.checkbox(
         T("export_seg_include_readme"),
         value=True,
         key="export_seg_readme",
         help=T("export_seg_include_readme_help"),
     )
-    _include_summary = _opt_col3.checkbox(
+    _opt_col3.checkbox(
         T("export_seg_include_summary"),
         value=False,
         key="export_seg_summary",
         help=T("export_seg_include_summary_help"),
     )
+    # Read committed state from session_state (not from return value)
+    # to avoid a render-order race that prevents unchecking from refreshing the preview.
+    _include_readme  = st.session_state.get("export_seg_readme",  True)
+    _include_summary = st.session_state.get("export_seg_summary", False)
 
     # Determine per-segment counts based on chosen data source
     def _get_seg_subset(seg: str) -> "pd.DataFrame":
@@ -598,10 +600,10 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
                     if _include_readme:
                         _readme_cnt = _seg_counts.get(_seg, 0)
                         _readme_txt = (
-                            f"Segment: {_seg}\n"
-                            f"Project: {_pfx}\n"
-                            f"Sequences in dataset: {_readme_cnt}\n"
-                            f"Generated by VirSift\n"
+                            f"{T('export_seg_readme_segment')}: {_seg}\n"
+                            f"{T('export_seg_readme_project')}: {_pfx}\n"
+                            f"{T('export_seg_readme_count')}: {_readme_cnt}\n"
+                            f"{T('export_seg_readme_generated')}\n"
                         )
                         _seg_zf.writestr(f"{_seg}/README.txt", _readme_txt)
 
@@ -625,15 +627,17 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
                             except Exception:
                                 pass
 
-                # Optional top-level dataset summary CSV
+                # Optional top-level dataset summary CSV (headers localised)
                 if _include_summary:
+                    _sum_seg_col = T("export_seg_summary_seg_col")
+                    _sum_cnt_col = T("export_seg_summary_count_col")
                     _sum_rows = []
                     for _seg in _selected_segs:
                         _cnt = _seg_counts.get(_seg, 0)
-                        _sum_rows.append({"segment": _seg, "sequences": _cnt})
+                        _sum_rows.append({_sum_seg_col: _seg, _sum_cnt_col: _cnt})
                     import csv as _csv, io as _io2
                     _sum_buf = _io2.StringIO()
-                    _sum_writer = _csv.DictWriter(_sum_buf, fieldnames=["segment", "sequences"])
+                    _sum_writer = _csv.DictWriter(_sum_buf, fieldnames=[_sum_seg_col, _sum_cnt_col])
                     _sum_writer.writeheader()
                     _sum_writer.writerows(_sum_rows)
                     _seg_zf.writestr("dataset_summary.csv", _sum_buf.getvalue())
