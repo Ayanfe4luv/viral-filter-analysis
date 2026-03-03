@@ -124,21 +124,21 @@ _FEATURE_TABLE = {
 | Page | Key Actions | Notes |
 |------|-------------|-------|
 | **🌍 Observatory** | Live KPI dashboard (sequence count, avg length, subtypes, date span); epidemic curve; top subtypes/hosts/segments/locations/clades; Sankey flow, Icicle hierarchy, 3D Scatter (via sidebar checkbox) | Landing page when no data loaded; auto-switches to dashboard when dataset is active |
-| **📁 Workspace** | File upload (`.fasta` `.fa` `.gz` `.zip` `.aln-fasta`); per-file stats table (subtypes, segments, date span); Select All / ⚡ Activate All; merge | Activate before any other step; multiple files merged at once |
-| **🔬 Sequence Refinery** | Min/max length, N-run filter, dedup, subtype/clade/date/host/location filters, HITL Smart Sampler; **📁 per-file scope** | Scope selector focuses all filters on one source file |
-| **🧬 Molecular Timeline** | Clone persistence matrix, per-month representative selection, diagnostics, methodology snapshot; **📁 per-file scope** | Needs `sequence_hash`; scope analyses each file's clusters independently |
-| **📊 Analytics** | 10+ chart types, custom palettes, dataset-overview gauges (count, avg length, completeness); **📁 per-file scope** | Scope selector narrows all charts to one source file |
-| **📋 Export** | FASTA, CSV, JSON, ZIP bundle, accession list (.txt), session log, split-by-group export; Segment Folder Structure ZIP (HA/NA/PB2/PB1/PA/NP/MP/NS/HE/P3); per-source-file downloads | Always export before closing the browser |
+| **📁 Workspace** | File upload (`.fasta` `.fa` `.gz` `.zip` `.aln-fasta`); per-file stats table (subtypes, segments, date span); Select All / ⚡ Activate All; merge; **2×2 Top Metrics grid** (subtypes, segments, locations, clades) after activation | Activate before any other step; multiple files merged at once |
+| **🔬 Sequence Refinery** | Min/max length, N-run filter, dedup, subtype/clade/date/host/location filters, HITL Smart Sampler; **📁 per-file scope**; dataset-aware strategy recommendation box; per-strategy sensitivity guide | Scope selector focuses all filters on one source file |
+| **🧬 Molecular Timeline** | Clone persistence matrix, per-month representative selection, diagnostics, methodology snapshot; **📁 per-file scope**; **🔍 5-dimensional scope filter** (segment, subtype, host, location, clade) | Needs `sequence_hash`; scope analyses each file's clusters independently |
+| **📊 Analytics** | 10+ chart types, custom palettes, dataset-overview gauges (count, avg length, completeness); **📁 per-file scope**; **🔍 5-dimensional scope filter** (segment, subtype, host, location, clade) | Scope filters AND-combined; only non-trivial dimensions shown |
+| **📋 Export** | FASTA, CSV, JSON, ZIP bundle, accession list (.txt), session log, split-by-group export; Segment Folder Structure ZIP with **preset buttons** (Surface, Polymerase, Internal), sequence counts on labels, optional README per folder, optional summary CSV, live folder-structure preview; per-source-file downloads | Always export before closing the browser |
 """,
     "ru": """\
 | Страница | Ключевые действия | Примечания |
 |----------|-------------------|-----------|
 | **🌍 Обсерватория** | Дашборд КПЭ (количество, средняя длина, субтипы, диапазон дат); эпидемическая кривая; топ субтипов/хозяев/сегментов/местоположений/кладов; диаграмма Санки, иерархия-сосулька, 3D-разброс (флажок в боковой панели) | Целевая страница без данных; автопереключается в дашборд при активном наборе |
-| **📁 Рабочее пространство** | Загрузка файла (`.fasta` `.fa` `.gz` `.zip` `.aln-fasta`); таблица статистики; Выбрать всё / ⚡ Активировать всё; слияние | Сначала активируйте; несколько файлов объединяются сразу |
-| **🔬 Очиститель последовательностей** | Мин./макс. длина, N-серии, дедупликация, фильтры по субтипу/кладу/дате/хозяину, сэмплер HITL; **📁 scope по файлу** | Scope фокусирует все фильтры на одном исходном файле |
-| **🧬 Молекулярная временная шкала** | Матрица устойчивости клонов, представители по месяцам, диагностика; **📁 scope по файлу** | Нужен `sequence_hash`; scope анализирует кластеры каждого файла отдельно |
-| **📊 Аналитика** | 10+ типов диаграмм, палитры, датасет-метрики; **📁 scope по файлу** | Scope сужает все графики до одного исходного файла |
-| **📋 Экспорт** | FASTA, CSV, JSON, ZIP, список аккессий (.txt), журнал сессии, экспорт по группам; структура папок сегментов (HA/NA/PB2/PB1/PA/NP/MP/NS/HE/P3); загрузка по исходным файлам | Обязательно экспортируйте перед закрытием браузера |
+| **📁 Рабочее пространство** | Загрузка файла (`.fasta` `.fa` `.gz` `.zip` `.aln-fasta`); таблица статистики; Выбрать всё / ⚡ Активировать всё; слияние; **сетка 2×2** (субтипы, сегменты, местоположения, клады) после активации | Сначала активируйте; несколько файлов объединяются сразу |
+| **🔬 Очиститель последовательностей** | Мин./макс. длина, N-серии, дедупликация, фильтры по субтипу/кладу/дате/хозяину, сэмплер HITL; **📁 scope по файлу**; рекомендательный блок стратегии; руководство по чувствительности | Scope фокусирует все фильтры на одном исходном файле |
+| **🧬 Молекулярная временная шкала** | Матрица устойчивости клонов, представители по месяцам, диагностика; **📁 scope по файлу**; **🔍 5-мерный фильтр** (сегмент, субтип, хозяин, местоположение, клад) | Нужен `sequence_hash`; scope анализирует кластеры каждого файла отдельно |
+| **📊 Аналитика** | 10+ типов диаграмм, палитры, датасет-метрики; **📁 scope по файлу**; **🔍 5-мерный фильтр** (сегмент, субтип, хозяин, местоположение, клад) | Фильтры объединяются через И; показываются только нетривиальные измерения |
+| **📋 Экспорт** | FASTA, CSV, JSON, ZIP, список аккессий (.txt), журнал сессии, экспорт по группам; структура папок сегментов с **кнопками быстрого выбора** (Поверхностные, Полимераза, Внутренние), счётчики последовательностей, README на папку, сводный CSV, превью структуры; загрузка по исходным файлам | Обязательно экспортируйте перед закрытием браузера |
 """,
 }
 
@@ -155,6 +155,8 @@ _TIPS_FAQ = {
 | **Filtered vs Active** | Most pages prefer the *filtered* dataset if one exists, falling back to the full *active* dataset. The source label shows which is in use. |
 | **Language Toggle** | Switch between English and Russian at any time from the sidebar — all labels, buttons, and charts update immediately. |
 | **Batch Multi-File** | Upload several FASTA files and click **⚡ Activate All** to merge them instantly. Once merged, Sequence Refinery, Analytics and Molecular Timeline all display a **📁 File Scope** radio at the top — switch to any source file to analyse it independently, then back to *All files (merged)* for the full view. |
+| **Multi-Dimensional Scope** | After selecting a source file, open the **🔍 Scope Filters** expander in Analytics or Timeline to add up to 5 independent dimension filters (segment, subtype, host, location, clade). Useful for isolating e.g. only avian H5N1 HA sequences from a particular location in a large multi-segment batch. |
+| **Host Inference** | Host is inferred from the isolate name — no separate field required. The parser uses Latin genus names (`Anas_platyrhynchos` → Avian), compound English species names (`common_teal` → Avian, `domestic_pig` → Mammalian), and RSV/MERS/SARS prefixes. Sequences with ambiguous names fall back to "Unknown". |
 
 ---
 
@@ -184,6 +186,15 @@ _TIPS_FAQ = {
 
 **Q: Can I use VirSift offline?**
 > Yes — run `streamlit run app.py` locally after installing requirements. All processing is local; no sequences are ever uploaded to external servers.
+
+**Q: My avian FASTA shows segments in the Subtype column and subtypes in the Segment column — why?**
+> GISAID avian batch downloads use **segment-first** field order: `Isolate|SEGMENT|SUBTYPE|Date|Accession|Clade`. Human/B downloads use **subtype-first** order. VirSift auto-detects the order by checking whether field 2 matches a known segment name (HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3). If you see swapped columns, it may indicate a non-standard export — try normalising with the Header Converter.
+
+**Q: Why is `Anas_platyrhynchos` (or another Latin species name) showing as "Unknown" host?**
+> The parser's host classifier recognises Latin binomials by genus name. Ensure your headers use the standard GISAID format with underscores (`Anas_platyrhynchos`, not `Anas platyrhynchos`). Common genera like Anas, Gallus, Anser, Cygnus, Sus, Bos, Equus are all covered. If a genus is missing, open an issue so it can be added to `_AVIAN_GENERA` or `_MAMMAL_GENERA` in `utils/gisaid_parser.py`.
+
+**Q: The 🔍 Scope Filters expander doesn't appear in Analytics — why?**
+> The expander is only shown when the active dataset contains **at least one column** with 2 or more unique, non-"Unknown" values. A single-segment, single-host file with no meaningful diversity in any dimension will not show the expander — filter the full dataset in Sequence Refinery first.
 """,
     "ru": """\
 ### 💡 Советы
@@ -197,6 +208,8 @@ _TIPS_FAQ = {
 | **Фильтрованный vs активный** | Большинство страниц используют фильтрованный датасет, если он существует, иначе — полный активный. |
 | **Переключение языка** | Переключайтесь между English и Русским в любое время из боковой панели. |
 | **Пакетная обработка файлов** | Загрузите несколько FASTA-файлов и нажмите **⚡ Активировать все** для мгновенного слияния. После слияния Очиститель, Аналитика и Молекулярная шкала показывают **📁 Scope** — выберите файл для анализа по отдельности. |
+| **Многомерный Scope** | После выбора исходного файла откройте **🔍 Фильтры Scope** в Аналитике или Шкале — до 5 независимых измерений (сегмент, субтип, хозяин, местоположение, клад). Удобно для выделения, например, только птичьих H5N1 HA из конкретного региона. |
+| **Определение хозяина** | Хозяин определяется из имени изолята — отдельное поле не требуется. Парсер распознаёт латинские биномы (`Anas_platyrhynchos` → Птицы), составные английские названия (`common_teal` → Птицы), префиксы hRSV/MERS/SARS. При неоднозначности — "Unknown". |
 
 ---
 
@@ -222,6 +235,15 @@ _TIPS_FAQ = {
 
 **В: Как запустить VirSift локально?**
 > Установите зависимости (`pip install -r requirements.txt`) и запустите `streamlit run app.py`. Никакие данные не отправляются на внешние серверы.
+
+**В: В птичьем FASTA сегменты показаны в столбце Субтип, и наоборот — почему?**
+> Выгрузки GISAID для птичьего гриппа используют порядок **сегмент—первый**: `Изолят|СЕГМЕНТ|СУБТИП|Дата|Аккессия|Клад`. Выгрузки для человеческого/B гриппа — порядок субтип—первый. VirSift автоматически определяет порядок по наличию поля 2 в списке известных сегментов.
+
+**В: Почему `Anas_platyrhynchos` (или другое латинское название) показывается как "Unknown"?**
+> Классификатор хозяев распознаёт латинские биномы по роду (первое слово). Убедитесь, что заголовки используют стандартный формат GISAID с подчёркиваниями. Если род отсутствует в базе — сообщите об этом через Issues.
+
+**В: Развёртка 🔍 Scope Filters не отображается в Аналитике — почему?**
+> Развёртка показывается только при наличии хотя бы одного столбца с 2 и более уникальными значениями (исключая "Unknown"). При однородном датасете сначала примените фильтры в Очистителе.
 """,
 }
 
@@ -266,28 +288,38 @@ your GISAID download.
 
 ## 🐦 Avian Influenza
 
-**Header structure:**
+> **⚠️ Field Order Auto-Detection:** GISAID avian batch downloads place the **segment BEFORE the subtype** (field order: `Isolate|SEGMENT|SUBTYPE|Date|Accession|Clade`), which is the **reverse** of human influenza downloads. VirSift automatically detects this by checking whether field 2 is a known segment name (HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3). No manual configuration is needed — just upload and activate.
+
+**Header structure (avian GISAID batch download):**
 ```
->Isolate_Name|Virus_Type/Subtype|Gene_Segment|Collection_Date|GISAID_Accession|Clade_Assignment
+>Isolate_Name|Gene_Segment|Virus_Type/Subtype|Collection_Date|GISAID_Accession|Clade_Assignment
 ```
 
 | # | Field | Example | Format |
 |---|-------|---------|--------|
 | 1 | **Isolate Name** | `A/duck/Bangladesh/33676/2017` | A/Host/Location/ID/Year |
-| 2 | **Type / Subtype** | `A_/_H4N6` | `A_/_HxNy` or `A/HxNy` |
-| 3 | **Segment** | `PA` | HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3 |
+| 2 | **Segment** *(avian batch: segment-first)* | `PA` | HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3 |
+| 3 | **Type / Subtype** | `A_/_H4N6` | `A_/_HxNy` or `A/HxNy` |
 | 4 | **Date** | `2017-09-28` | YYYY-MM-DD, YYYY-MM, YYYY, or unknown |
 | 5 | **Accession** | `EPI_ISL_329573` | EPI_ISL_XXXXXXX |
 | 6 | **Clade** | `6B.1A.5a.2a.1` | Any format, empty, or `unassigned` |
 
 **Valid avian influenza examples:**
 ```fasta
->A/duck/Bangladesh/33676/2017|A_/_H4N6|PA|2017-09-28|EPI_ISL_329573|6B.1A.5a.2a.1
->A/duck/Tottori/311018/2015|A_/_H3N6|PA|2015-10-01|EPI_ISL_237156|unassigned
->A/mallard/Republic_of_Georgia/13/2011|A_/_H6N2|PA|2011-11-26|EPI_ISL_189700|
->A/goose/China/1234/2020|A/H5N1|HA|2020-03|EPI_ISL_400001|2.3.4.4h
->A/wild_bird/Japan/567/2019|A_/_H7N9|NA|2019|EPI_ISL_300123|unassigned
+>A/duck/Bangladesh/33676/2017|PA|A_/_H4N6|2017-09-28|EPI_ISL_329573|6B.1A.5a.2a.1
+>A/duck/Tottori/311018/2015|PA|A_/_H3N6|2015-10-01|EPI_ISL_237156|unassigned
+>A/mallard/Republic_of_Georgia/13/2011|PA|A_/_H6N2|2011-11-26|EPI_ISL_189700|
+>A/goose/China/1234/2020|HA|A/H5N1|2020-03|EPI_ISL_400001|2.3.4.4h
+>A/Anas_platyrhynchos/Siberia/42/2023|HA|A_/_H5N1|2023-06-01|EPI_ISL_500123|2.3.4.4b
+>A/common_teal/Italy/1494/2006|HA|A_/_H5N1|2006-11-05|EPI_ISL_100456|2.3.4.4
 ```
+
+**Host inference from isolate names:**
+VirSift infers host from the isolate name — no separate header field required:
+- **Latin binomials** (`Anas_platyrhynchos`, `Gallus_gallus`, `Anser_anser`) → matched against `_AVIAN_GENERA` (140+ genera)
+- **Compound English names** (`common_teal`, `mallard_duck`, `domestic_chicken`) → each word matched against `_AVIAN_KW`
+- **Mammalian** (`Sus_scrofa` → Mammalian, `domestic_pig` → Mammalian)
+- **Human influenza** names (`A/Novosibirsk/...`, `A/California/...`) → inferred as Human
 
 **GISAID download settings for Avian Influenza:**
 - Proteins: select segment (e.g., HA, PA, NP)
@@ -413,28 +445,36 @@ VirSift поддерживает **формат GISAID с вертикально
 
 ## 🐦 Птичий грипп
 
-**Структура заголовка:**
+> **⚠️ Автоопределение порядка полей:** Пакетные выгрузки GISAID для птичьего гриппа ставят **сегмент ДО субтипа** (порядок: `Изолят|СЕГМЕНТ|СУБТИП|Дата|Аккессия|Клад`), что **противоположно** выгрузкам для человеческого гриппа. VirSift автоматически определяет порядок, проверяя, является ли поле 2 известным названием сегмента (HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3). Ручная настройка не требуется.
+
+**Структура заголовка (пакетная выгрузка GISAID для птичьего гриппа):**
 ```
->Isolate_Name|Virus_Type/Subtype|Gene_Segment|Collection_Date|GISAID_Accession|Clade_Assignment
+>Isolate_Name|Gene_Segment|Virus_Type/Subtype|Collection_Date|GISAID_Accession|Clade_Assignment
 ```
 
 | № | Поле | Пример | Формат |
 |---|------|--------|--------|
 | 1 | **Название изолята** | `A/duck/Bangladesh/33676/2017` | A/Хозяин/Место/ID/Год |
-| 2 | **Тип / Субтип** | `A_/_H4N6` | `A_/_HxNy` или `A/HxNy` |
-| 3 | **Сегмент** | `PA` | HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3 |
+| 2 | **Сегмент** *(птичий: сегмент первый)* | `PA` | HA, NA, PB2, PB1, PA, NP, MP, NS, HE, P3 |
+| 3 | **Тип / Субтип** | `A_/_H4N6` | `A_/_HxNy` или `A/HxNy` |
 | 4 | **Дата** | `2017-09-28` | ГГГГ-ММ-ДД, ГГГГ-ММ, ГГГГ или unknown |
 | 5 | **Аккессия** | `EPI_ISL_329573` | EPI_ISL_XXXXXXX |
 | 6 | **Клад** | `6B.1A.5a.2a.1` | Любой формат, пустое или `unassigned` |
 
 **Допустимые примеры птичьего гриппа:**
 ```fasta
->A/duck/Bangladesh/33676/2017|A_/_H4N6|PA|2017-09-28|EPI_ISL_329573|6B.1A.5a.2a.1
->A/duck/Tottori/311018/2015|A_/_H3N6|PA|2015-10-01|EPI_ISL_237156|unassigned
->A/mallard/Republic_of_Georgia/13/2011|A_/_H6N2|PA|2011-11-26|EPI_ISL_189700|
->A/goose/China/1234/2020|A/H5N1|HA|2020-03|EPI_ISL_400001|2.3.4.4h
->A/wild_bird/Japan/567/2019|A_/_H7N9|NA|2019|EPI_ISL_300123|unassigned
+>A/duck/Bangladesh/33676/2017|PA|A_/_H4N6|2017-09-28|EPI_ISL_329573|6B.1A.5a.2a.1
+>A/duck/Tottori/311018/2015|PA|A_/_H3N6|2015-10-01|EPI_ISL_237156|unassigned
+>A/mallard/Republic_of_Georgia/13/2011|PA|A_/_H6N2|2011-11-26|EPI_ISL_189700|
+>A/Anas_platyrhynchos/Siberia/42/2023|HA|A_/_H5N1|2023-06-01|EPI_ISL_500123|2.3.4.4b
+>A/common_teal/Italy/1494/2006|HA|A_/_H5N1|2006-11-05|EPI_ISL_100456|2.3.4.4
 ```
+
+**Определение хозяина из имени изолята:**
+VirSift определяет хозяина из имени изолята — отдельное поле не нужно:
+- **Латинские биномы** (`Anas_platyrhynchos`, `Gallus_gallus`, `Anser_anser`) → соответствие в `_AVIAN_GENERA` (140+ родов)
+- **Составные английские названия** (`common_teal`, `mallard_duck`, `domestic_chicken`) → каждое слово проверяется по `_AVIAN_KW`
+- **Млекопитающие** (`Sus_scrofa` → Млекопитающее, `domestic_pig` → Млекопитающее)
 
 **Настройки загрузки GISAID для птичьего гриппа:**
 - Белки: выберите сегмент (например, HA, PA, NP)
