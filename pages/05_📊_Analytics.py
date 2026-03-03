@@ -96,23 +96,45 @@ if len(_an_contrib) > 1:
         st.caption(T("timeline_scope_all_caption", n=len(_an_contrib)))
     st.divider()
 
-# ── Segment scope selector — shown whenever the active data contains multiple
-#    segments (single-file multi-segment GISAID datasets or merged files).
-#    Lets the user focus charts on one or more specific gene segments.
-_an_segs_avail = sorted(_df["segment"].dropna().unique().tolist()) if "segment" in _df.columns else []
-if len(_an_segs_avail) > 1:
-    _an_seg_sel = st.multiselect(
-        T("analytics_segment_scope_label"),
-        options=_an_segs_avail,
-        default=st.session_state.get("an_seg_scope", []),
-        key="an_seg_scope",
-        placeholder=T("analytics_segment_scope_placeholder"),
-        help=T("analytics_segment_scope_help"),
-    )
-    if _an_seg_sel:
-        _df = _df[_df["segment"].isin(_an_seg_sel)].copy()
-        _src = f"🧬 {T('analytics_segment_scope_active', segs=', '.join(_an_seg_sel))}"
-        st.caption(f"🧬 {T('analytics_segment_scope_active', segs=', '.join(_an_seg_sel))}")
+# ── Multi-dimensional scope filters (collapsible) ───────────────────────────
+# Builds a compact filter expander with one row per available dimension.
+# Each filter is an independent multiselect; all active selections are ANDed.
+_an_scope_dims = [
+    ("segment",       T("analytics_segment_scope_label"),  "🧩", "an_seg_scope"),
+    ("subtype_clean", T("analytics_subtype_scope_label"),  "🧬", "an_sub_scope"),
+    ("host",          T("analytics_host_scope_label"),     "🐦", "an_host_scope"),
+    ("location",      T("analytics_location_scope_label"), "📍", "an_loc_scope"),
+    ("clade_l1",      T("analytics_clade_scope_label"),    "🌿", "an_clade_scope"),
+]
+# Only show dimensions that have ≥2 meaningful unique values
+_an_active_dims = [
+    (col, lbl, icon, key)
+    for col, lbl, icon, key in _an_scope_dims
+    if col in _df.columns
+    and _df[col].replace("Unknown", pd.NA).dropna().nunique() >= 2
+]
+
+if _an_active_dims:
+    _an_scope_labels: list[str] = []
+    with st.expander(T("analytics_scope_expander"), expanded=False):
+        for col, lbl, icon, sk in _an_active_dims:
+            _opts = sorted(
+                _df[col].replace("Unknown", pd.NA).dropna().unique().tolist(),
+                key=str,
+            )
+            _sel = st.multiselect(
+                f"{icon} {lbl}",
+                options=_opts,
+                default=st.session_state.get(sk, []),
+                key=sk,
+                placeholder=T("analytics_scope_all_placeholder"),
+            )
+            if _sel:
+                _df = _df[_df[col].isin(_sel)].copy()
+                _an_scope_labels.append(f"{icon}{', '.join(_sel[:3])}{'…' if len(_sel)>3 else ''}")
+    if _an_scope_labels:
+        _src = " · ".join(_an_scope_labels)
+        st.caption(f"**{T('analytics_scope_active_badge')}:** {_src}")
     st.divider()
 
 st.caption(T("analytics_dataset_label", n=f"{len(_df):,}", src=_src))

@@ -137,6 +137,46 @@ if len(_tl_contrib) > 1:
 
     st.divider()
 
+# ── Multi-dimensional scope filters ───────────────────────────────────────────
+# Mirrors the Analytics scope expander — same UX, independent ANDed filters.
+_tl_scope_dims = [
+    ("segment",       T("analytics_segment_scope_label"),  "🧩", "tl_seg_scope"),
+    ("subtype_clean", T("analytics_subtype_scope_label"),  "🧬", "tl_sub_scope"),
+    ("host",          T("analytics_host_scope_label"),     "🐦", "tl_host_scope"),
+    ("location",      T("analytics_location_scope_label"), "📍", "tl_loc_scope"),
+    ("clade_l1",      T("analytics_clade_scope_label"),    "🌿", "tl_clade_scope"),
+]
+_tl_active_dims = [
+    (col, lbl, icon, key)
+    for col, lbl, icon, key in _tl_scope_dims
+    if col in _display_df.columns
+    and _display_df[col].replace("Unknown", pd.NA).dropna().nunique() >= 2
+]
+
+if _tl_active_dims:
+    _tl_scope_labels: list[str] = []
+    with st.expander(T("analytics_scope_expander"), expanded=False):
+        for col, lbl, icon, sk in _tl_active_dims:
+            _opts = sorted(
+                _display_df[col].replace("Unknown", pd.NA).dropna().unique().tolist(),
+                key=str,
+            )
+            _sel = st.multiselect(
+                f"{icon} {lbl}",
+                options=_opts,
+                default=st.session_state.get(sk, []),
+                key=sk,
+                placeholder=T("analytics_scope_all_placeholder"),
+            )
+            if _sel:
+                _display_df = _display_df[_display_df[col].isin(_sel)].copy()
+                _tl_scope_labels.append(
+                    f"{icon}{', '.join(_sel[:3])}{'…' if len(_sel) > 3 else ''}"
+                )
+    if _tl_scope_labels:
+        st.caption(f"**{T('analytics_scope_active_badge')}:** {' · '.join(_tl_scope_labels)}")
+    st.divider()
+
 # ── Mission statement ─────────────────────────────────────────────────────────
 st.info(f"""
 {T('timeline_mission_header')}
