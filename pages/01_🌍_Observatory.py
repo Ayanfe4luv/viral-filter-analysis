@@ -610,12 +610,13 @@ if _show_locs:
 
 # ── Row 5: Donut chart — user-selectable field ───────────────────────────────
 _donut_field_map = {k: v for k, v in [
-    (T("obs_col_clade"),   "clade"),
-    ("Clade L1",           "clade_l1"),
-    (T("obs_col_subtype"), "subtype_clean"),
-    (T("obs_col_host"),    "host"),
-    (T("obs_col_segment"), "segment"),
-    (T("obs_col_location"),"location"),
+    (T("obs_col_clade"),         "clade"),
+    ("Clade L1",                 "clade_l1"),
+    (T("obs_col_subtype"),       "subtype_clean"),
+    (T("obs_col_host"),          "host"),
+    (T("obs_col_host_species"),  "host_species"),
+    (T("obs_col_segment"),       "segment"),
+    (T("obs_col_location"),      "location"),
 ] if v in _display_df.columns and _display_df[v].notna().any()}
 
 if _show_clades and _donut_field_map:
@@ -660,12 +661,13 @@ if _show_new_charts and _PLOTLY:
 
     # ── Auto-detect available categorical and numeric fields ──────────────────
     _ADV_CAT = {k: v for k, v in [
-        (T("obs_col_host"),    "host"),
-        (T("obs_col_subtype"), "subtype_clean"),
-        (T("obs_col_segment"), "segment"),
-        (T("obs_col_clade"),   "clade"),
-        ("Clade L1",           "clade_l1"),
-        (T("obs_col_location"),"location"),
+        (T("obs_col_host"),         "host"),
+        (T("obs_col_host_species"), "host_species"),
+        (T("obs_col_subtype"),      "subtype_clean"),
+        (T("obs_col_segment"),      "segment"),
+        (T("obs_col_clade"),        "clade"),
+        ("Clade L1",                "clade_l1"),
+        (T("obs_col_location"),     "location"),
     ] if v in _display_df.columns and _display_df[v].notna().any()}
     _ADV_CAT_LBLS = list(_ADV_CAT.keys())
 
@@ -683,91 +685,193 @@ if _show_new_charts and _PLOTLY:
         T("obs_3d_header"),
     ])
 
-    # ── Tab 1: Sankey — configurable 3-level flow ─────────────────────────────
+    # ── Tab 1: Sankey — configurable N-level flow (up to 5 levels) ────────────
     with _nc_tab1:
-        # Field controls
-        _s_c1, _s_c2, _s_c3, _s_c4 = st.columns([1, 1, 1, 2])
+        _none_opt = T("obs_none_option")
+        _opt_required = _ADV_CAT_LBLS
+        _opt_optional = [_none_opt] + _ADV_CAT_LBLS
+
+        # ── Level selectors (5 slots; levels 1-2 required, 3-5 optional) ─────
         _s_def1 = _ADV_CAT_LBLS.index(T("obs_col_host")) if T("obs_col_host") in _ADV_CAT_LBLS else 0
         _s_def2 = (_ADV_CAT_LBLS.index(T("obs_col_subtype"))
-                   if T("obs_col_subtype") in _ADV_CAT_LBLS else min(1, len(_ADV_CAT_LBLS)-1))
-        _s_l3_opts = [T("obs_none_option")] + _ADV_CAT_LBLS
-        # Default level 3: prefer Clade, then Clade L1, else none
+                   if T("obs_col_subtype") in _ADV_CAT_LBLS else min(1, len(_ADV_CAT_LBLS) - 1))
+        # Level 3 default: prefer Clade → Clade L1 → none
         _s_def3 = next(
-            (i for i, v in enumerate(_s_l3_opts)
+            (i + 1 for i, v in enumerate(_ADV_CAT_LBLS)
              if v in (T("obs_col_clade"), "Clade L1")),
             0,
         )
-        with _s_c1:
-            _san_l1 = st.selectbox(T("obs_sankey_level1"), _ADV_CAT_LBLS,
+        _san_lv_cols = st.columns(5)
+        with _san_lv_cols[0]:
+            _san_l1 = st.selectbox(T("obs_sankey_level1"), _opt_required,
                                    index=_s_def1, key="adv_san_f1")
-        with _s_c2:
-            _san_l2 = st.selectbox(T("obs_sankey_level2"), _ADV_CAT_LBLS,
+        with _san_lv_cols[1]:
+            _san_l2 = st.selectbox(T("obs_sankey_level2"), _opt_required,
                                    index=_s_def2, key="adv_san_f2")
-        with _s_c3:
-            _san_l3 = st.selectbox(T("obs_sankey_level3"), _s_l3_opts,
+        with _san_lv_cols[2]:
+            _san_l3 = st.selectbox(T("obs_sankey_level3"), _opt_optional,
                                    index=_s_def3, key="adv_san_f3")
-        with _s_c4:
+        with _san_lv_cols[3]:
+            _san_l4 = st.selectbox(T("obs_sankey_level4"), _opt_optional,
+                                   index=0, key="adv_san_f4")
+        with _san_lv_cols[4]:
+            _san_l5 = st.selectbox(T("obs_sankey_level5"), _opt_optional,
+                                   index=0, key="adv_san_f5")
+
+        # ── Row 2: top-N slider, colour palette, title ────────────────────────
+        _san_row2 = st.columns([1, 2, 3])
+        with _san_row2[0]:
+            _san_top_n = st.slider(T("obs_sankey_top_n"), min_value=3,
+                                   max_value=20, value=8, key="adv_san_top_n")
+        with _san_row2[1]:
+            _SAN_PALETTES = {
+                "Teal / Green / Purple": ["#0891b2", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444"],
+                "Ocean Blues":           ["#1e40af", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd"],
+                "Warm Sunset":           ["#dc2626", "#ea580c", "#d97706", "#ca8a04", "#65a30d"],
+                "Monochrome":            ["#1e293b", "#334155", "#475569", "#64748b", "#94a3b8"],
+            }
+            _san_pal_name = st.selectbox(T("obs_sankey_palette"),
+                                         list(_SAN_PALETTES.keys()), key="adv_san_pal")
+            _san_pal = _SAN_PALETTES[_san_pal_name]
+        with _san_row2[2]:
             _san_title = st.text_input(T("obs_adv_chart_title"),
                                        value=T("obs_sankey_header"),
                                        key="adv_san_title", max_chars=80)
 
-        _sf1 = _ADV_CAT.get(_san_l1, "host")
-        _sf2 = _ADV_CAT.get(_san_l2, "subtype_clean")
-        _sf3 = _ADV_CAT.get(_san_l3) if _san_l3 != T("obs_none_option") else None
+        # ── Resolve columns and validate ─────────────────────────────────────
+        def _san_resolve(lbl):
+            return _ADV_CAT.get(lbl) if lbl and lbl != _none_opt else None
 
-        try:
-            _san_cols  = [c for c in [_sf1, _sf2] if c and c in _display_df.columns]
-            if _sf3 and _sf3 in _display_df.columns:
-                _san_cols.append(_sf3)
-            _san_raw   = _display_df[_san_cols].dropna(how="any").head(8000)
+        _san_level_cols = [c for c in
+                           [_san_resolve(l) for l in [_san_l1, _san_l2, _san_l3, _san_l4, _san_l5]]
+                           if c]
 
-            _v1 = _san_raw[_sf1].value_counts().head(8).index.tolist()
-            _v2 = _san_raw[_sf2].value_counts().head(10).index.tolist()
-            _v3 = (_san_raw[_sf3].value_counts().head(8).index.tolist()
-                   if _sf3 and _sf3 in _san_raw.columns else [])
+        if len(set(_san_level_cols)) < len(_san_level_cols):
+            st.warning(T("obs_sankey_duplicate_warning"))
+        elif len(_san_level_cols) < 2:
+            st.info(T("obs_sankey_no_data"))
+        else:
+            try:
+                # Drop rows with any missing value in the selected level columns
+                _san_available = [c for c in _san_level_cols if c in _display_df.columns]
+                _san_df = (_display_df[_san_available]
+                           .dropna(how="any")
+                           .head(8000))
 
-            _san_nodes  = _v1 + _v2 + _v3
-            _san_ni     = {n: idx for idx, n in enumerate(_san_nodes)}
-            _san_colors = (["#0891b2"] * len(_v1)
-                           + ["#10b981"] * len(_v2)
-                           + ["#8b5cf6"] * len(_v3))
-            _san_links  = []
+                # Per-level top-N value lists
+                _san_lv_vals = [
+                    _san_df[c].value_counts().head(_san_top_n).index.tolist()
+                    if c in _san_df.columns else []
+                    for c in _san_available
+                ]
 
-            _m12 = _san_raw[_san_raw[_sf1].isin(_v1) & _san_raw[_sf2].isin(_v2)]
-            for (a, b), cnt in _m12.groupby([_sf1, _sf2]).size().items():
-                if a in _san_ni and b in _san_ni:
-                    _san_links.append({"s": _san_ni[a], "t": _san_ni[b], "v": int(cnt)})
+                # Flat node list with per-level offsets
+                _san_nodes: list[str] = []
+                _san_node_colors: list[str] = []
+                _san_lv_offsets: list[int] = []
+                _off = 0
+                for _li, _vals in enumerate(_san_lv_vals):
+                    _san_lv_offsets.append(_off)
+                    _san_nodes.extend([str(v) for v in _vals])
+                    _san_node_colors.extend(
+                        [_san_pal[_li % len(_san_pal)]] * len(_vals)
+                    )
+                    _off += len(_vals)
 
-            if _sf3 and _v3:
-                _m23 = _san_raw[_san_raw[_sf2].isin(_v2) & _san_raw[_sf3].isin(_v3)]
-                for (b, c), cnt in _m23.groupby([_sf2, _sf3]).size().items():
-                    if b in _san_ni and c in _san_ni:
-                        _san_links.append({"s": _san_ni[b], "t": _san_ni[c], "v": int(cnt)})
+                # Links for each adjacent level pair
+                _san_links: list[dict] = []
+                for _li in range(len(_san_available) - 1):
+                    _sfa, _sfb = _san_available[_li], _san_available[_li + 1]
+                    _va,  _vb  = _san_lv_vals[_li], _san_lv_vals[_li + 1]
+                    _off_a, _off_b = _san_lv_offsets[_li], _san_lv_offsets[_li + 1]
+                    _ni_a = {v: _off_a + j for j, v in enumerate(_va)}
+                    _ni_b = {v: _off_b + j for j, v in enumerate(_vb)}
+                    _mask = _san_df[_sfa].isin(_va) & _san_df[_sfb].isin(_vb)
+                    for (_a, _b), _cnt in _san_df[_mask].groupby([_sfa, _sfb]).size().items():
+                        if _a in _ni_a and _b in _ni_b:
+                            _san_links.append(
+                                {"s": _ni_a[_a], "t": _ni_b[_b], "v": int(_cnt)}
+                            )
 
-            if _san_links:
-                _san_fig = _go_ext.Figure(_go_ext.Sankey(
-                    node=dict(
-                        label=_san_nodes, color=_san_colors,
-                        pad=15, thickness=20,
-                        hovertemplate="%{label}<br>%{value} sequences<extra></extra>",
-                    ),
-                    link=dict(
-                        source=[l["s"] for l in _san_links],
-                        target=[l["t"] for l in _san_links],
-                        value =[l["v"] for l in _san_links],
-                    ),
-                ))
-                _san_fig.update_layout(
-                    title=dict(text=_san_title, font=dict(size=13), x=0),
-                    height=430, paper_bgcolor="rgba(0,0,0,0)",
-                    margin=dict(t=40, b=10, l=10, r=10),
-                    font=dict(size=11),
-                )
-                st.plotly_chart(_san_fig, use_container_width=True)
-            else:
-                st.info(T("obs_sankey_no_data"))
-        except Exception as _san_err:
-            st.warning(f"Sankey error: {_san_err}")
+                if _san_links:
+                    _san_fig = _go_ext.Figure(_go_ext.Sankey(
+                        arrangement="snap",
+                        node=dict(
+                            label=_san_nodes,
+                            color=_san_node_colors,
+                            pad=15,
+                            thickness=24,
+                            line=dict(color="#475569", width=0.5),
+                            hovertemplate="%{label}<br>%{value:,} sequences<extra></extra>",
+                        ),
+                        link=dict(
+                            source=[l["s"] for l in _san_links],
+                            target=[l["t"] for l in _san_links],
+                            value =[l["v"] for l in _san_links],
+                            hovertemplate=(
+                                "%{source.label} \u2192 %{target.label}: "
+                                "%{value:,}<extra></extra>"
+                            ),
+                        ),
+                    ))
+                    _san_fig.update_layout(
+                        title=dict(text=_san_title, font=dict(size=13), x=0),
+                        height=max(420, 60 * _san_top_n),
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        margin=dict(t=40, b=20, l=10, r=10),
+                        font=dict(size=11, color="#1e293b"),
+                    )
+                    st.plotly_chart(_san_fig, use_container_width=True)
+
+                    # ── Download row ──────────────────────────────────────────
+                    st.caption(T("obs_sankey_downloads"))
+                    _dl_c1, _dl_c2, _dl_c3, _dl_c4 = st.columns(4)
+                    with _dl_c1:
+                        st.download_button(
+                            "⬇ HTML",
+                            _san_fig.to_html(full_html=True).encode("utf-8"),
+                            "sankey.html", "text/html",
+                            key="san_dl_html",
+                        )
+                    with _dl_c2:
+                        st.download_button(
+                            "⬇ JSON (Plotly)",
+                            _san_fig.to_json().encode("utf-8"),
+                            "sankey.json", "application/json",
+                            key="san_dl_json",
+                        )
+                    with _dl_c3:
+                        try:
+                            _san_png = _san_fig.to_image(format="png", scale=2)
+                            st.download_button(
+                                "⬇ PNG", _san_png, "sankey.png", "image/png",
+                                key="san_dl_png",
+                            )
+                        except Exception:
+                            st.caption(T("obs_sankey_no_kaleido"))
+                    with _dl_c4:
+                        _link_rows = [
+                            {
+                                "Source": _san_nodes[l["s"]],
+                                "Target": _san_nodes[l["t"]],
+                                "Count":  l["v"],
+                            }
+                            for l in _san_links
+                        ]
+                        _link_csv = (
+                            pd.DataFrame(_link_rows)
+                            .to_csv(index=False)
+                            .encode("utf-8")
+                        )
+                        st.download_button(
+                            "⬇ CSV (links)",
+                            _link_csv, "sankey_links.csv", "text/csv",
+                            key="san_dl_csv",
+                        )
+                else:
+                    st.info(T("obs_sankey_no_data"))
+            except Exception as _san_err:
+                st.warning(f"Sankey error: {_san_err}")
 
     # ── Tab 2: Icicle — configurable path ────────────────────────────────────
     with _nc_tab2:
@@ -807,6 +911,30 @@ if _show_new_charts and _PLOTLY:
                     coloraxis_showscale=False,
                 )
                 st.plotly_chart(_ic_fig, use_container_width=True)
+                # Downloads
+                st.caption(T("obs_sankey_downloads"))
+                _ic_dl1, _ic_dl2, _ic_dl3 = st.columns(3)
+                with _ic_dl1:
+                    st.download_button(
+                        "⬇ HTML",
+                        _ic_fig.to_html(full_html=True).encode("utf-8"),
+                        "icicle.html", "text/html", key="ic_dl_html",
+                    )
+                with _ic_dl2:
+                    st.download_button(
+                        "⬇ JSON (Plotly)",
+                        _ic_fig.to_json().encode("utf-8"),
+                        "icicle.json", "application/json", key="ic_dl_json",
+                    )
+                with _ic_dl3:
+                    try:
+                        st.download_button(
+                            "⬇ PNG",
+                            _ic_fig.to_image(format="png", scale=2),
+                            "icicle.png", "image/png", key="ic_dl_png",
+                        )
+                    except Exception:
+                        st.caption(T("obs_sankey_no_kaleido"))
             except Exception as _ic_err:
                 st.warning(f"Icicle error: {_ic_err}")
         else:
@@ -911,6 +1039,30 @@ if _show_new_charts and _PLOTLY:
                 )
             _fig_3d.update_layout(**_layout_3d)
             st.plotly_chart(_fig_3d, use_container_width=True)
+            # Downloads
+            st.caption(T("obs_sankey_downloads"))
+            _d3_dl1, _d3_dl2, _d3_dl3 = st.columns(3)
+            with _d3_dl1:
+                st.download_button(
+                    "⬇ HTML",
+                    _fig_3d.to_html(full_html=True).encode("utf-8"),
+                    "scatter3d.html", "text/html", key="d3_dl_html",
+                )
+            with _d3_dl2:
+                st.download_button(
+                    "⬇ JSON (Plotly)",
+                    _fig_3d.to_json().encode("utf-8"),
+                    "scatter3d.json", "application/json", key="d3_dl_json",
+                )
+            with _d3_dl3:
+                try:
+                    st.download_button(
+                        "⬇ PNG",
+                        _fig_3d.to_image(format="png", scale=2),
+                        "scatter3d.png", "image/png", key="d3_dl_png",
+                    )
+                except Exception:
+                    st.caption(T("obs_sankey_no_kaleido"))
         except Exception as _3d_err:
             st.warning(f"3D scatter error: {_3d_err}")
 

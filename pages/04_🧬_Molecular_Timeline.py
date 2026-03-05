@@ -303,15 +303,23 @@ with st.expander(f"🔍 {T('timeline_diagnostics_header')}", expanded=True):
 
         with _ctrl_sp:
             # Top-N slider — controls bar chart rows and table rows.
-            # Setting to max includes singletons (count = 1).
-            _top_n_diag = st.slider(
-                T("timeline_top_n_label"),
-                min_value=1,
-                max_value=max(_total_diag, 1),
-                value=min(12, max(_total_diag, 1)),
-                help=T("timeline_top_n_help"),
-                key="tl_diag_top_n",
-            )
+            # Guard: when only 1 cluster exists, min_value == max_value which
+            # raises StreamlitAPIException.  Also clamp stale session-state
+            # values that exceed the current max (scope filter shrinks data).
+            if _total_diag <= 1:
+                _top_n_diag = _total_diag
+                st.caption(T("timeline_single_cluster_note"))
+            else:
+                if st.session_state.get("tl_diag_top_n", 0) > _total_diag:
+                    st.session_state["tl_diag_top_n"] = min(12, _total_diag)
+                _top_n_diag = st.slider(
+                    T("timeline_top_n_label"),
+                    min_value=1,
+                    max_value=_total_diag,
+                    value=min(12, _total_diag),
+                    help=T("timeline_top_n_help"),
+                    key="tl_diag_top_n",
+                )
             st.caption(T("timeline_slider_view_only_warning"))
 
         try:
