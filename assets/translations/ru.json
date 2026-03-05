@@ -758,6 +758,10 @@
   "export_seg_folder_header":       "Структура папок сегментов",
   "export_seg_folder_caption":      "Создайте ZIP-архив с пустыми папками сегментов (или заполните данными). Полезно для организации многосегментных проектов GISAID.",
   "export_seg_folder_zip_name":     "Имя ZIP-архива",
+  "export_seg_file_prefix_label":   "Префикс файлов",
+  "export_seg_file_prefix_help":    "Префикс для имён FASTA и CSV файлов внутри каждой папки сегмента (например, 'Новосибирск' → Новосибирск_HA.fasta)",
+  "export_seg_include_metadata":    "CSV метаданных в каждой папке",
+  "export_seg_include_metadata_help": "Включить CSV с метаданными рядом с FASTA внутри каждой папки сегмента",
   "export_seg_folder_select_segments": "Выберите сегменты для включения:",
   "export_seg_data_source_label":   "Содержимое папок",
   "export_seg_source_empty":        "Пустые папки (только структура)",
@@ -787,5 +791,14 @@
   "obs_3d_x_axis":             "Ось X",
   "obs_3d_y_axis":             "Ось Y",
   "obs_3d_z_axis":             "Ось Z",
-  "obs_3d_color_field":        "Цвет по полю"
+  "obs_3d_color_field":        "Цвет по полю",
+  "obs_col_host_species":      "Вид хозяина",
+  "obs_sankey_level4":         "Уровень 4 (необязательно)",
+  "obs_sankey_level5":         "Уровень 5 (необязательно)",
+  "obs_sankey_palette":        "Цветовая палитра",
+  "obs_sankey_top_n":          "Топ N на уровень",
+  "obs_sankey_duplicate_warning": "Каждый уровень должен использовать разные поля — уберите дублирующий выбор.",
+  "obs_sankey_downloads":      "Скачать",
+  "obs_sankey_no_kaleido":     "Экспорт PNG требует пакет kaleido: pip install kaleido",
+  "timeline_single_cluster_note": "Найден только 1 уникальный кластер последовательностей — ползунок не нужен."
 }

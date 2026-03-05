@@ -758,6 +758,10 @@
   "export_seg_folder_header":       "Segment Folder Structure",
   "export_seg_folder_caption":      "Generate a ZIP archive with empty segment folders (or populate with data). Useful for organising multi-segment GISAID projects.",
   "export_seg_folder_zip_name":     "ZIP archive name",
+  "export_seg_file_prefix_label":   "File prefix",
+  "export_seg_file_prefix_help":    "Prefix applied to FASTA and CSV filenames inside each segment folder (e.g. 'Novosibirsk' → Novosibirsk_HA.fasta)",
+  "export_seg_include_metadata":    "Metadata CSV per folder",
+  "export_seg_include_metadata_help": "Include a metadata CSV alongside the FASTA inside each segment folder",
   "export_seg_folder_select_segments": "Select segments to include:",
   "export_seg_data_source_label":   "Folder contents",
   "export_seg_source_empty":        "Empty folders (scaffold only)",
@@ -787,5 +791,14 @@
   "obs_3d_x_axis":             "X axis",
   "obs_3d_y_axis":             "Y axis",
   "obs_3d_z_axis":             "Z axis",
-  "obs_3d_color_field":        "Color by"
+  "obs_3d_color_field":        "Color by",
+  "obs_col_host_species":      "Host Species",
+  "obs_sankey_level4":         "Level 4 (optional)",
+  "obs_sankey_level5":         "Level 5 (optional)",
+  "obs_sankey_palette":        "Color palette",
+  "obs_sankey_top_n":          "Top N per level",
+  "obs_sankey_duplicate_warning": "Each level must use a different field — remove the duplicate selection.",
+  "obs_sankey_downloads":      "Downloads",
+  "obs_sankey_no_kaleido":     "PNG export requires the kaleido package: pip install kaleido",
+  "timeline_single_cluster_note": "Only 1 unique sequence cluster found — slider not needed."
 }
