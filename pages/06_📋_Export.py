@@ -461,8 +461,8 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
 
     _ALL_SEGMENTS = ["HA", "NA", "PB2", "PB1", "PA", "NP", "MP", "NS", "HE", "P3"]
 
-    # ── ZIP name ──────────────────────────────────────────────────────────────
-    _seg_zname_col, _ = st.columns([2, 3])
+    # ── ZIP name + per-file prefix ────────────────────────────────────────────
+    _seg_zname_col, _seg_pfx_col = st.columns(2)
     with _seg_zname_col:
         _seg_zip_name = st.text_input(
             T("export_seg_folder_zip_name"),
@@ -471,6 +471,17 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
             key="export_seg_zip_name",
             placeholder="project_name_segment_folders",
         )
+    with _seg_pfx_col:
+        _seg_pfx_input = st.text_input(
+            T("export_seg_file_prefix_label"),
+            value=st.session_state.get("export_seg_file_prefix", _pfx),
+            max_chars=40,
+            key="export_seg_file_prefix",
+            placeholder=_pfx,
+            help=T("export_seg_file_prefix_help"),
+        )
+    # Sanitise — same rules as the global prefix
+    _seg_file_pfx = re.sub(r"[^\w\-]", "_", (_seg_pfx_input or _pfx).strip())[:40] or _pfx
 
     # ── Preset quick-selectors ────────────────────────────────────────────────
     st.caption(T("export_seg_presets_label"))
@@ -512,13 +523,21 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
         T("export_seg_source_empty"),
         T("export_seg_source_from_export"),
     ]
-    # Offer "from Split & Export" only when a segment-level split has been previewed
+    # "from split" when a segment-level split has been previewed
     _split_by_seg_available = (
         "split_groups_df" in st.session_state
         and st.session_state.get("split_field_col") == "segment"
     )
+    # "nested" when a NON-segment split has been previewed (e.g. Subtype)
+    _split_by_nonseg_available = (
+        "split_groups_df" in st.session_state
+        and st.session_state.get("split_field_col") not in ("segment", None)
+    )
     if _split_by_seg_available:
         _seg_src_options.append(T("export_seg_source_from_split"))
+    if _split_by_nonseg_available:
+        _nested_label = st.session_state.get("split_label", "Group")
+        _seg_src_options.append(T("export_seg_source_nested", field=_nested_label))
 
     _seg_data_src = st.radio(
         T("export_seg_data_source_label"),
@@ -529,8 +548,13 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
         help=T("export_seg_folder_split_help"),
     )
     _split_into_segs = _seg_data_src != T("export_seg_source_empty")
+    _is_nested_mode = (
+        _split_by_nonseg_available
+        and _seg_data_src == T("export_seg_source_nested", field=_nested_label
+                               if _split_by_nonseg_available else "")
+    )
 
-    _opt_col2, _opt_col3 = st.columns(2)
+    _opt_col2, _opt_col3, _opt_col4 = st.columns(3)
     _opt_col2.checkbox(
         T("export_seg_include_readme"),
         value=True,
@@ -538,15 +562,22 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
         help=T("export_seg_include_readme_help"),
     )
     _opt_col3.checkbox(
+        T("export_seg_include_metadata"),
+        value=True,
+        key="export_seg_metadata",
+        help=T("export_seg_include_metadata_help"),
+    )
+    _opt_col4.checkbox(
         T("export_seg_include_summary"),
         value=False,
         key="export_seg_summary",
         help=T("export_seg_include_summary_help"),
     )
-    # Read committed state from session_state (not from return value)
-    # to avoid a render-order race that prevents unchecking from refreshing the preview.
-    _include_readme  = st.session_state.get("export_seg_readme",  True)
-    _include_summary = st.session_state.get("export_seg_summary", False)
+    # Read committed state from session_state to avoid render-order race
+    # (unchecking inside st.columns + st.expander can lag the return value).
+    _include_readme   = st.session_state.get("export_seg_readme",   True)
+    _include_metadata = st.session_state.get("export_seg_metadata", True)
+    _include_summary  = st.session_state.get("export_seg_summary",  False)
 
     # Determine per-segment counts based on chosen data source
     def _get_seg_subset(seg: str) -> "pd.DataFrame":
@@ -559,29 +590,75 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
             return _export_df[_export_df["segment"].str.upper() == seg.upper()]
         return pd.DataFrame()
 
+    def _get_nested_groups() -> "dict[str, list[str]]":
+        """Return {split_key: [matching rows]} for nested mode."""
+        if not _split_by_nonseg_available:
+            return {}
+        _grp_df = st.session_state["split_groups_df"]
+        return {k: k for k in _grp_df["_split_key"].dropna().unique().tolist()}
+
     # Recompute counts if using the split source
     if _seg_data_src == T("export_seg_source_from_split") and _split_by_seg_available:
         _grp_df = st.session_state["split_groups_df"]
         _seg_counts = _grp_df["_split_key"].str.upper().value_counts().to_dict()
+
+    # Gather nested split keys for preview/generation
+    _nested_split_keys: list[str] = []
+    if _is_nested_mode and _split_by_nonseg_available:
+        _ns_grp_df = st.session_state["split_groups_df"]
+        _nested_split_keys = (
+            _ns_grp_df["_split_key"].dropna().unique().tolist()
+        )
 
     # ── Live folder-structure preview ─────────────────────────────────────────
     if _selected_segs:
         _preview_lines = [f"📦 {_seg_zip_name or 'segment_folders'}.zip"]
         for _s in _selected_segs:
             _cnt = _seg_counts.get(_s, 0)
-            _preview_lines.append(f"  ├── 📁 {_s}/")
-            if _split_into_segs and _cnt:
-                _preview_lines.append(f"  │   ├── 🧬 {_pfx}_{_s}.fasta  ({_cnt:,} seqs)")
-                _preview_lines.append(f"  │   └── 📊 {_pfx}_{_s}_metadata.csv")
-            elif _split_into_segs:
-                _preview_lines.append(f"  │   └── (no sequences for this segment)")
-            if _include_readme:
-                _preview_lines.append(f"  │   {'└' if not _split_into_segs else '   '}── 📄 README.txt")
+            _is_last_seg = (_s == _selected_segs[-1])
+            _seg_conn = "└" if _is_last_seg and not _include_summary else "├"
+            _preview_lines.append(f"  {_seg_conn}── 📁 {_s}/")
+            _indent = "      " if _is_last_seg and not _include_summary else "  │   "
+
+            if _is_nested_mode and _nested_split_keys:
+                # Nested: show sub-folder per split key
+                for _ni, _nk in enumerate(_nested_split_keys):
+                    _nk_safe = re.sub(r"[^\w\-]", "_", str(_nk))
+                    _is_last_nk = (_ni == len(_nested_split_keys) - 1) and not _include_readme
+                    _nk_conn = "└" if _is_last_nk else "├"
+                    _preview_lines.append(f"{_indent}{_nk_conn}── 📁 {_nk_safe}/")
+                    _nk_indent = _indent + ("      " if _is_last_nk else "│   ")
+                    _sub_files: list[str] = [f"🧬 {_seg_file_pfx}_{_s}_{_nk_safe}.fasta"]
+                    if _include_metadata:
+                        _sub_files.append(f"📊 {_seg_file_pfx}_{_s}_{_nk_safe}_metadata.csv")
+                    for _sfi, _sf in enumerate(_sub_files):
+                        _sf_conn = "└" if _sfi == len(_sub_files) - 1 else "├"
+                        _preview_lines.append(f"{_nk_indent}{_sf_conn}── {_sf}")
+                if _include_readme:
+                    _preview_lines.append(f"{_indent}└── 📄 README.txt")
+            else:
+                # Flat: files directly in segment folder
+                _folder_files: list[str] = []
+                if _split_into_segs and _cnt:
+                    _folder_files.append(f"🧬 {_seg_file_pfx}_{_s}.fasta  ({_cnt:,} seqs)")
+                    if _include_metadata:
+                        _folder_files.append(f"📊 {_seg_file_pfx}_{_s}_metadata.csv")
+                elif _split_into_segs:
+                    _folder_files.append("(no sequences for this segment)")
+                if _include_readme:
+                    _folder_files.append("📄 README.txt")
+                for _fi, _fitem in enumerate(_folder_files):
+                    _conn = "└" if _fi == len(_folder_files) - 1 else "├"
+                    _preview_lines.append(f"{_indent}{_conn}── {_fitem}")
+
         if _include_summary:
             _preview_lines.append(f"  └── 📋 dataset_summary.csv")
         st.code("\n".join(_preview_lines), language=None)
 
-    if _split_into_segs:
+    if _is_nested_mode:
+        st.info(T("export_seg_folder_nested_info",
+                  field=st.session_state.get("split_label", "Group")), icon="ℹ️")
+    elif _split_into_segs:
         st.info(T("export_seg_folder_split_info"), icon="ℹ️")
 
     if st.button(T("export_seg_folder_generate"),
@@ -601,29 +678,63 @@ with st.expander(f"📁 {T('export_seg_folder_header')}", expanded=False):
                         _readme_cnt = _seg_counts.get(_seg, 0)
                         _readme_txt = (
                             f"{T('export_seg_readme_segment')}: {_seg}\n"
-                            f"{T('export_seg_readme_project')}: {_pfx}\n"
+                            f"{T('export_seg_readme_project')}: {_seg_file_pfx}\n"
                             f"{T('export_seg_readme_count')}: {_readme_cnt}\n"
                             f"{T('export_seg_readme_generated')}\n"
                         )
                         _seg_zf.writestr(f"{_seg}/README.txt", _readme_txt)
 
-                    # Optional FASTA + CSV data split
-                    if _split_into_segs:
+                    # ── Nested mode: sub-folder per split key ─────────────────
+                    if _is_nested_mode and _nested_split_keys:
+                        _ns_src = st.session_state["split_groups_df"]
+                        _seg_col = "segment"
+                        for _nk in _nested_split_keys:
+                            _nk_safe = re.sub(r"[^\w\-]", "_", str(_nk))
+                            # Filter: rows where segment matches AND split key matches
+                            _nk_mask = _ns_src["_split_key"] == _nk
+                            if _seg_col in _ns_src.columns:
+                                _nk_mask &= _ns_src[_seg_col].str.upper() == _seg.upper()
+                            _nk_rows = _ns_src[_nk_mask]
+                            if _nk_rows.empty:
+                                # Still create the subfolder
+                                _seg_zf.writestr(f"{_seg}/{_nk_safe}/.gitkeep", "")
+                                continue
+                            try:
+                                _nk_fasta = convert_df_to_fasta(_nk_rows)
+                                _seg_zf.writestr(
+                                    f"{_seg}/{_nk_safe}/{_seg_file_pfx}_{_seg}_{_nk_safe}.fasta",
+                                    _nk_fasta if isinstance(_nk_fasta, bytes)
+                                    else _nk_fasta.encode("utf-8"),
+                                )
+                                if _include_metadata:
+                                    _seg_zf.writestr(
+                                        f"{_seg}/{_nk_safe}/"
+                                        f"{_seg_file_pfx}_{_seg}_{_nk_safe}_metadata.csv",
+                                        _nk_rows.drop(
+                                            columns=["sequence", "_split_key"], errors="ignore"
+                                        ).to_csv(index=False),
+                                    )
+                            except Exception:
+                                pass
+
+                    # ── Flat mode: FASTA + metadata directly in segment folder ─
+                    elif _split_into_segs:
                         _seg_subset = _get_seg_subset(_seg)
                         if not _seg_subset.empty:
                             try:
                                 _seg_fasta = convert_df_to_fasta(_seg_subset)
                                 _seg_zf.writestr(
-                                    f"{_seg}/{_pfx}_{_seg}.fasta",
+                                    f"{_seg}/{_seg_file_pfx}_{_seg}.fasta",
                                     _seg_fasta if isinstance(_seg_fasta, bytes)
                                     else _seg_fasta.encode("utf-8"),
                                 )
-                                _seg_zf.writestr(
-                                    f"{_seg}/{_pfx}_{_seg}_metadata.csv",
-                                    _seg_subset.drop(
-                                        columns=["sequence", "_split_key"], errors="ignore"
-                                    ).to_csv(index=False),
-                                )
+                                if _include_metadata:
+                                    _seg_zf.writestr(
+                                        f"{_seg}/{_seg_file_pfx}_{_seg}_metadata.csv",
+                                        _seg_subset.drop(
+                                            columns=["sequence", "_split_key"], errors="ignore"
+                                        ).to_csv(index=False),
+                                    )
                             except Exception:
                                 pass
 

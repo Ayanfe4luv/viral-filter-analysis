@@ -345,10 +345,7 @@ if _active_df.empty:
 st.title(f"\U0001f30d {T('obs_header')}")
 
 if _is_filtered:
-    st.caption(
-        f"Showing **filtered** dataset ({len(_display_df):,} seqs) "
-        f"— active dataset has {len(_active_df):,} seqs."
-    )
+    st.caption(T("obs_showing_filtered", n=len(_display_df), total=len(_active_df)))
 else:
     st.caption(T("obs_showing_active"))
 
@@ -507,9 +504,9 @@ if _show_epi:
                 st.metric(T("obs_latest"),     dates.max().strftime("%Y-%m-%d"))
                 st.metric(T("obs_dated_seqs"), f"{len(dates):,} / {len(_display_df):,}")
             else:
-                st.info("No parseable dates in this dataset.")
+                st.info(T("obs_no_parseable_dates"))
         else:
-            st.info("No collection_date column.")
+            st.info(T("obs_no_date_col"))
 
     with col_curve:
         st.subheader(T("obs_epi_curve_header"))
@@ -530,9 +527,9 @@ if _show_epi:
                     )
                     st.plotly_chart(fig, use_container_width=True)
                 else:
-                    st.info("No dated sequences to plot.")
+                    st.info(T("obs_no_dated_seqs"))
             except ImportError:
-                st.info("Install plotly for epidemic curve visualization.")
+                st.info(T("obs_no_dated_seqs"))
 
     st.divider()
 
@@ -568,24 +565,41 @@ if _show_locs:
     st.divider()
     # Build map of available categorical columns in priority order
     _loc_field_map = {k: v for k, v in [
-        (T("obs_col_location"), "location"),
-        (T("obs_col_host"),     "host"),
-        (T("obs_col_subtype"),  "subtype_clean"),
-        (T("obs_col_segment"),  "segment"),
-        ("Clade L1",            "clade_l1"),
-        (T("obs_col_clade"),    "clade"),
+        (T("obs_col_location"),  "location"),
+        (T("obs_col_host"),      "host"),
+        (T("obs_col_subtype"),   "subtype_clean"),
+        (T("obs_col_segment"),   "segment"),
+        (T("obs_col_clade_l1"),  "clade_l1"),
+        (T("obs_col_clade"),     "clade"),
     ] if v in _display_df.columns and _display_df[v].notna().any()}
 
-    _lf_hdr_col, _lf_ctrl_col = st.columns([3, 1])
+    _OBS_BAR_PALETTES = {
+        T("obs_palette_teal"):    "Teal",
+        T("obs_palette_viridis"): "Viridis",
+        T("obs_palette_plasma"):  "Plasma",
+        T("obs_palette_blues"):   "Blues",
+        T("obs_palette_greens"):  "Greens",
+        T("obs_palette_reds"):    "Reds",
+        T("obs_palette_sunset"):  "RdBu",
+        T("obs_palette_orange"):  "Oranges",
+    }
+    _lf_hdr_col, _lf_ctrl_col, _lf_pal_col = st.columns([3, 1, 1])
     with _lf_ctrl_col:
         _lf_lbl = st.selectbox(
             T("obs_top_field_selector"),
             list(_loc_field_map.keys()),
             index=0, key="obs_loc_field",
         )
+    with _lf_pal_col:
+        _lf_pal_name = st.selectbox(
+            T("obs_bar_palette_label"),
+            list(_OBS_BAR_PALETTES.keys()),
+            index=0, key="obs_loc_palette",
+        )
     _lf_col = _loc_field_map.get(_lf_lbl, "location")
+    _lf_scale = _OBS_BAR_PALETTES[_lf_pal_name]
     with _lf_hdr_col:
-        st.subheader(f"Top {_lf_lbl}")
+        st.subheader(T("obs_top_bar_header", field=_lf_lbl))
 
     if _lf_col in _display_df.columns:
         _vc_loc = _display_df[_lf_col].dropna().value_counts().head(15)
@@ -596,7 +610,7 @@ if _show_locs:
             fig = px.bar(
                 top_loc, x=T("obs_col_count"), y=_lf_lbl,
                 orientation="h", height=max(320, min(len(_vc_loc) * 28, 520)),
-                color=T("obs_col_count"), color_continuous_scale="Blues",
+                color=T("obs_col_count"), color_continuous_scale=_lf_scale,
             )
             fig.update_layout(
                 yaxis={"categoryorder": "total ascending"},
@@ -611,7 +625,7 @@ if _show_locs:
 # ── Row 5: Donut chart — user-selectable field ───────────────────────────────
 _donut_field_map = {k: v for k, v in [
     (T("obs_col_clade"),         "clade"),
-    ("Clade L1",                 "clade_l1"),
+    (T("obs_col_clade_l1"),      "clade_l1"),
     (T("obs_col_subtype"),       "subtype_clean"),
     (T("obs_col_host"),          "host"),
     (T("obs_col_host_species"),  "host_species"),
@@ -630,7 +644,7 @@ if _show_clades and _donut_field_map:
         )
     _dnt_col = _donut_field_map.get(_dnt_lbl, "clade")
     with _dnt_hdr_col:
-        st.subheader(f"Top {_dnt_lbl} Distribution")
+        st.subheader(T("obs_top_dist_header", field=_dnt_lbl))
 
     _vc_donut = _display_df[_dnt_col].dropna().value_counts().head(12)
     top_donut = pd.DataFrame({_dnt_lbl: _vc_donut.index.tolist(),
@@ -666,7 +680,7 @@ if _show_new_charts and _PLOTLY:
         (T("obs_col_subtype"),      "subtype_clean"),
         (T("obs_col_segment"),      "segment"),
         (T("obs_col_clade"),        "clade"),
-        ("Clade L1",                "clade_l1"),
+        (T("obs_col_clade_l1"),     "clade_l1"),
         (T("obs_col_location"),     "location"),
     ] if v in _display_df.columns and _display_df[v].notna().any()}
     _ADV_CAT_LBLS = list(_ADV_CAT.keys())
@@ -680,13 +694,14 @@ if _show_new_charts and _PLOTLY:
     _ADV_NUM_LBLS = list(_ADV_NUM.keys())
 
     _nc_tab1, _nc_tab2, _nc_tab3 = st.tabs([
-        T("obs_sankey_header"),
-        T("obs_icicle_header"),
-        T("obs_3d_header"),
+        T("obs_sankey_tab"),
+        T("obs_icicle_tab"),
+        T("obs_3d_tab"),
     ])
 
     # ── Tab 1: Sankey — configurable N-level flow (up to 5 levels) ────────────
     with _nc_tab1:
+        st.caption(T("obs_sankey_cue"))
         _none_opt = T("obs_none_option")
         _opt_required = _ADV_CAT_LBLS
         _opt_optional = [_none_opt] + _ADV_CAT_LBLS
@@ -698,7 +713,7 @@ if _show_new_charts and _PLOTLY:
         # Level 3 default: prefer Clade → Clade L1 → none
         _s_def3 = next(
             (i + 1 for i, v in enumerate(_ADV_CAT_LBLS)
-             if v in (T("obs_col_clade"), "Clade L1")),
+             if v in (T("obs_col_clade"), T("obs_col_clade_l1"))),
             0,
         )
         _san_lv_cols = st.columns(5)
@@ -725,10 +740,10 @@ if _show_new_charts and _PLOTLY:
                                    max_value=20, value=8, key="adv_san_top_n")
         with _san_row2[1]:
             _SAN_PALETTES = {
-                "Teal / Green / Purple": ["#0891b2", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444"],
-                "Ocean Blues":           ["#1e40af", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd"],
-                "Warm Sunset":           ["#dc2626", "#ea580c", "#d97706", "#ca8a04", "#65a30d"],
-                "Monochrome":            ["#1e293b", "#334155", "#475569", "#64748b", "#94a3b8"],
+                T("obs_san_pal_teal"):   ["#0891b2", "#10b981", "#8b5cf6", "#f59e0b", "#ef4444"],
+                T("obs_san_pal_ocean"):  ["#1e40af", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd"],
+                T("obs_san_pal_sunset"): ["#dc2626", "#ea580c", "#d97706", "#ca8a04", "#65a30d"],
+                T("obs_san_pal_mono"):   ["#1e293b", "#334155", "#475569", "#64748b", "#94a3b8"],
             }
             _san_pal_name = st.selectbox(T("obs_sankey_palette"),
                                          list(_SAN_PALETTES.keys()), key="adv_san_pal")
@@ -794,6 +809,17 @@ if _show_new_charts and _PLOTLY:
                             )
 
                 if _san_links:
+                    # Build semi-transparent link colors from source node color
+                    def _hex_to_rgba(hex_col: str, alpha: float = 0.45) -> str:
+                        h = hex_col.lstrip("#")
+                        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+                        return f"rgba({r},{g},{b},{alpha})"
+
+                    _san_link_colors = [
+                        _hex_to_rgba(_san_node_colors[l["s"]])
+                        for l in _san_links
+                    ]
+
                     _san_fig = _go_ext.Figure(_go_ext.Sankey(
                         arrangement="snap",
                         node=dict(
@@ -808,6 +834,7 @@ if _show_new_charts and _PLOTLY:
                             source=[l["s"] for l in _san_links],
                             target=[l["t"] for l in _san_links],
                             value =[l["v"] for l in _san_links],
+                            color=_san_link_colors,
                             hovertemplate=(
                                 "%{source.label} \u2192 %{target.label}: "
                                 "%{value:,}<extra></extra>"
@@ -828,14 +855,14 @@ if _show_new_charts and _PLOTLY:
                     _dl_c1, _dl_c2, _dl_c3, _dl_c4 = st.columns(4)
                     with _dl_c1:
                         st.download_button(
-                            "⬇ HTML",
+                            T("obs_dl_html"),
                             _san_fig.to_html(full_html=True).encode("utf-8"),
                             "sankey.html", "text/html",
                             key="san_dl_html",
                         )
                     with _dl_c2:
                         st.download_button(
-                            "⬇ JSON (Plotly)",
+                            T("obs_dl_json_plotly"),
                             _san_fig.to_json().encode("utf-8"),
                             "sankey.json", "application/json",
                             key="san_dl_json",
@@ -844,7 +871,7 @@ if _show_new_charts and _PLOTLY:
                         try:
                             _san_png = _san_fig.to_image(format="png", scale=2)
                             st.download_button(
-                                "⬇ PNG", _san_png, "sankey.png", "image/png",
+                                T("obs_dl_png"), _san_png, "sankey.png", "image/png",
                                 key="san_dl_png",
                             )
                         except Exception:
@@ -864,21 +891,22 @@ if _show_new_charts and _PLOTLY:
                             .encode("utf-8")
                         )
                         st.download_button(
-                            "⬇ CSV (links)",
+                            T("obs_dl_csv_links"),
                             _link_csv, "sankey_links.csv", "text/csv",
                             key="san_dl_csv",
                         )
                 else:
                     st.info(T("obs_sankey_no_data"))
             except Exception as _san_err:
-                st.warning(f"Sankey error: {_san_err}")
+                st.warning(T("obs_chart_error", err=str(_san_err)))
 
     # ── Tab 2: Icicle — configurable path ────────────────────────────────────
     with _nc_tab2:
+        st.caption(T("obs_icicle_cue"))
         _ic_c1, _ic_c2 = st.columns([3, 2])
         _ic_defaults = [l for l in [
             T("obs_col_segment"), T("obs_col_subtype"),
-            T("obs_col_clade"), "Clade L1",
+            T("obs_col_clade"), T("obs_col_clade_l1"),
         ] if l in _ADV_CAT_LBLS][:3]
         with _ic_c1:
             _ic_path_lbls = st.multiselect(
@@ -916,32 +944,33 @@ if _show_new_charts and _PLOTLY:
                 _ic_dl1, _ic_dl2, _ic_dl3 = st.columns(3)
                 with _ic_dl1:
                     st.download_button(
-                        "⬇ HTML",
+                        T("obs_dl_html"),
                         _ic_fig.to_html(full_html=True).encode("utf-8"),
                         "icicle.html", "text/html", key="ic_dl_html",
                     )
                 with _ic_dl2:
                     st.download_button(
-                        "⬇ JSON (Plotly)",
+                        T("obs_dl_json_plotly"),
                         _ic_fig.to_json().encode("utf-8"),
                         "icicle.json", "application/json", key="ic_dl_json",
                     )
                 with _ic_dl3:
                     try:
                         st.download_button(
-                            "⬇ PNG",
+                            T("obs_dl_png"),
                             _ic_fig.to_image(format="png", scale=2),
                             "icicle.png", "image/png", key="ic_dl_png",
                         )
                     except Exception:
                         st.caption(T("obs_sankey_no_kaleido"))
             except Exception as _ic_err:
-                st.warning(f"Icicle error: {_ic_err}")
+                st.warning(T("obs_chart_error", err=str(_ic_err)))
         else:
             st.info(T("obs_icicle_no_data"))
 
     # ── Tab 3: 3D Scatter — configurable axes ────────────────────────────────
     with _nc_tab3:
+        st.caption(T("obs_3d_cue"))
         _d3_c1, _d3_c2, _d3_c3, _d3_c4 = st.columns(4)
         _d3_title_col, _ = st.columns([3, 1])
 
