@@ -22,7 +22,7 @@ Performance target: 10K sequences in < 5 seconds.
 
 # Increment whenever host-inference, location-extraction, or field-order
 # detection logic changes — forces @st.cache_data to reparse all files.
-_PARSER_VERSION = "v3d.3"
+_PARSER_VERSION = "v3d.4"
 
 import gzip
 import hashlib
@@ -349,6 +349,79 @@ def extract_location_from_isolate(isolate_name: str) -> str:
     return parts[1] if n > 1 else "Unknown"
 
 
+# Scientific name → common name lookup (applied to host_species column).
+# Maps GISAID verbatim tokens at slot 1 to their conventional English name.
+# Case-sensitive — keys match the exact capitalisation used in GISAID headers.
+_SPECIES_COMMON_NAMES: dict = {
+    # Anatidae — ducks
+    "Anas_platyrhynchos":   "mallard",
+    "Anas_crecca":          "common_teal",
+    "Anas_carolinensis":    "green-winged_teal",
+    "Anas_strepera":        "gadwall",
+    "Anas_acuta":           "pintail",
+    "Anas_clypeata":        "shoveler",
+    "Anas_querquedula":     "garganey",
+    "Anas_penelope":        "wigeon",
+    "Anas_americana":       "American_wigeon",
+    "Anas_discors":         "blue-winged_teal",
+    "Anas_formosa":         "Baikal_teal",
+    "Anas_poecilorhyncha":  "spot-billed_duck",
+    "Anas_falcata":         "falcated_duck",
+    # Aythya — diving ducks
+    "Aythya_ferina":        "pochard",
+    "Aythya_fuligula":      "tufted_duck",
+    "Aythya_marila":        "scaup",
+    "Aythya_nyroca":        "ferruginous_duck",
+    # Anser — geese
+    "Anser_anser":          "greylag_goose",
+    "Anser_fabalis":        "bean_goose",
+    "Anser_albifrons":      "white-fronted_goose",
+    "Anser_brachyrhynchus": "pink-footed_goose",
+    "Anser_caerulescens":   "snow_goose",
+    "Branta_canadensis":    "Canada_goose",
+    "Branta_bernicla":      "brent_goose",
+    "Branta_leucopsis":     "barnacle_goose",
+    # Mergus — mergansers
+    "Mergus_merganser":     "merganser",
+    "Mergus_serrator":      "red-breasted_merganser",
+    # Cygnus — swans
+    "Cygnus_olor":          "mute_swan",
+    "Cygnus_cygnus":        "whooper_swan",
+    "Cygnus_columbianus":   "Bewick_swan",
+    # Podicipedidae — grebes
+    "Podiceps_cristatus":   "great_crested_grebe",
+    "Podiceps_grisegena":   "red-necked_grebe",
+    "Podiceps_auritus":     "Slavonian_grebe",
+    # Corvidae
+    "Corvus_frugilegus":    "rook",
+    "Corvus_corax":         "raven",
+    "Corvus_corone":        "carrion_crow",
+    # Galliformes
+    "Gallus_gallus":        "chicken",
+    "Meleagris_gallopavo":  "turkey",
+    "Coturnix_coturnix":    "quail",
+    "Coturnix_japonica":    "Japanese_quail",
+    "Phasianus_colchicus":  "pheasant",
+    "Numida_meleagris":     "guinea_fowl",
+    # Columbidae
+    "Columba_livia":        "pigeon",
+    # Ardeidae
+    "Ardea_cinerea":        "grey_heron",
+    "Nycticorax_nycticorax": "night_heron",
+    # Mammals
+    "Sus_scrofa":           "pig",
+    "Equus_caballus":       "horse",
+    "Felis_catus":          "cat",
+    "Canis_lupus":          "dog",
+    "Mustela_vison":        "mink",
+    "Neovison_vison":       "mink",
+    "Halichoerus_grypus":   "grey_seal",
+    "Phoca_vitulina":       "harbour_seal",
+    "Phoca_largha":         "spotted_seal",
+    "Odobenus_rosmarus":    "walrus",
+}
+
+
 def _extract_host_species(isolate_name: str) -> str:
     """Return the specific host-species token from a GISAID isolate name.
 
@@ -375,7 +448,8 @@ def _extract_host_species(isolate_name: str) -> str:
     if _is_flu_AB and n >= 5:
         # Slot 1 = host species token (always present in avian/animal records)
         token = parts[1]
-        return token if token.lower() not in _skip else "Unknown"
+        raw = token if token.lower() not in _skip else "Unknown"
+        return _SPECIES_COMMON_NAMES.get(raw, raw)
 
     if _is_flu_AB and n == 4:
         # Human format — no host slot
@@ -386,7 +460,8 @@ def _extract_host_species(isolate_name: str) -> str:
         if not part or part.lower() in _skip:
             continue
         if _classify_isolate_part(part) is not None:
-            return part
+            raw = part
+            return _SPECIES_COMMON_NAMES.get(raw, raw)
     return "Unknown"
 
 
