@@ -525,12 +525,22 @@ def _render_sidebar() -> None:
 
         # ── Language — bold white label + collapsed widget label ────────────
         st.markdown(f"<b style='color:#ffffff;font-size:0.9rem'>{T('sidebar_language')}</b>", unsafe_allow_html=True)
-        _lang_map = {"🇬🇧 English": "en", "🇷🇺 Русский": "ru"}
+        _lang_map = {
+            "🇬🇧 English":  "en",
+            "🇷🇺 Русский":  "ru",
+            "🇫🇷 Français": "fr",
+            "🇪🇸 Español":  "es",
+            "🇨🇳 中文":     "zh",
+            "🇸🇦 العربية":  "ar",
+        }
         _current = st.session_state.get("language", "en")
+        _lang_opts = list(_lang_map.keys())
+        _reverse_map = {v: k for k, v in _lang_map.items()}
+        _current_label = _reverse_map.get(_current, _lang_opts[0])
         _selected = st.selectbox(
             T("sidebar_language"),
-            options=list(_lang_map.keys()),
-            index=0 if _current == "en" else 1,
+            options=_lang_opts,
+            index=_lang_opts.index(_current_label) if _current_label in _lang_opts else 0,
             key="language_selector",
             label_visibility="collapsed",
         )
